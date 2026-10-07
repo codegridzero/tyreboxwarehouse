@@ -110,7 +110,6 @@ db.run(`
         manufacturer TEXT,
         product_type TEXT,
         quantity INTEGER NOT NULL DEFAULT 1,
-        claim_reason TEXT DEFAULT 'Manufacturing Defect',
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id)
@@ -163,14 +162,14 @@ db.run(`
     ('CLM-20260922-01', '2026-09-22', 2, 'Tariq Mahmood', 2, 'Master Foton 3.5T (LHR-8842)', 'Madina Traders, GT Road', 4, 'Received', 'Manufacturing defects returned by retail dealer'),
     ('CLM-20260923-01', '2026-09-23', 3, 'Rashid Khan', 3, 'Shahzore Blue (KHI-5512)', 'Al-Rehman Spare Parts', 3, 'Received', 'Monthly dealer warranty returns collected');
 
-    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity, claim_reason) VALUES
-    (1, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2, 'Bead Cut / Defect'),
-    (1, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 1, 'Bulge / Bubble'),
-    (1, 3, 'MM Venture 2.50.17 Honda 70 Giga', 'Giga', 'Tube', 2, 'Joint Leakage'),
-    (2, 4, '428H-108L Gold Chain (Honda 70)', 'Diamond', 'Chain', 2, 'Link Snapped'),
-    (2, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2, 'Manufacturing Defect'),
-    (3, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 2, 'Sidewall Crack'),
-    (3, 5, 'Havoline 20W-50 4T 0.7L (Honda 70 / 4T)', 'Caltex', 'Oil', 1, 'Can Seal Leakage');
+    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity) VALUES
+    (1, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2),
+    (1, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 1),
+    (1, 3, 'MM Venture 2.50.17 Honda 70 Giga', 'Giga', 'Tube', 2),
+    (2, 4, '428H-108L Gold Chain (Honda 70)', 'Diamond', 'Chain', 2),
+    (2, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2),
+    (3, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 2),
+    (3, 5, 'Havoline 20W-50 4T 0.7L (Honda 70 / 4T)', 'Caltex', 'Oil', 1);
 `);
 
 // Export binary to warehouse.sqlite

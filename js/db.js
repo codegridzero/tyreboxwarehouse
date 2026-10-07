@@ -308,7 +308,6 @@ class DatabaseManager {
                 manufacturer TEXT,
                 product_type TEXT,
                 quantity INTEGER NOT NULL DEFAULT 1,
-                claim_reason TEXT DEFAULT 'Manufacturing Defect',
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
                 FOREIGN KEY (product_id) REFERENCES products(id)

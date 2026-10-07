@@ -88,7 +88,6 @@ db.run(`
         manufacturer TEXT,
         product_type TEXT,
         quantity INTEGER NOT NULL DEFAULT 1,
-        claim_reason TEXT DEFAULT 'Manufacturing Defect',
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id)
@@ -124,12 +123,12 @@ db.run(`
     ('CLM-20260921-01', '2026-09-21', 1, 'Muhammad Ali', 1, 'Hino 500 Heavy', 'Bismillah Autos', 5, 'Received', 'Customer spot replacement'),
     ('CLM-20260922-01', '2026-09-22', 2, 'Tariq Mahmood', 2, 'Master Foton 3.5T', 'Madina Traders', 4, 'Received', 'Defective stock collected');
 
-    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity, claim_reason) VALUES
-    (1, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2, 'Bead Cut / Defect'),
-    (1, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 1, 'Bulge / Bubble'),
-    (1, 3, 'MM Venture 2.50.17 Honda 70 Giga', 'Giga', 'Tube', 2, 'Joint Leakage'),
-    (2, 4, '428H-108L Gold Chain (Honda 70)', 'Diamond', 'Chain', 2, 'Link Snapped'),
-    (2, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2, 'Manufacturing Defect');
+    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity) VALUES
+    (1, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2),
+    (1, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 1),
+    (1, 3, 'MM Venture 2.50.17 Honda 70 Giga', 'Giga', 'Tube', 2),
+    (2, 4, '428H-108L Gold Chain (Honda 70)', 'Diamond', 'Chain', 2),
+    (2, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2);
 `);
 
 const stmtClaims = db.prepare("SELECT COUNT(*) AS total FROM claims");
@@ -225,15 +224,14 @@ sourceDb.run(`
         manufacturer TEXT,
         product_type TEXT,
         quantity INTEGER NOT NULL DEFAULT 1,
-        claim_reason TEXT DEFAULT 'Manufacturing Defect',
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
 
     INSERT INTO claims (id, claim_code, claim_date, driver_id, driver_name, customer_shop, total_items)
     VALUES (10, 'CLM-20261001-01', '2026-10-01', 3, 'Rashid Khan', 'Khan Autos', 3);
 
-    INSERT INTO claim_items (claim_id, display_name, manufacturer, product_type, quantity, claim_reason)
-    VALUES (10, '428H-108L Gold Chain', 'Diamond', 'Chain', 3, 'Snapped');
+    INSERT INTO claim_items (claim_id, display_name, manufacturer, product_type, quantity)
+    VALUES (10, '428H-108L Gold Chain', 'Diamond', 'Chain', 3);
 `);
 
 const targetDb = new SQL.Database();
@@ -262,7 +260,6 @@ targetDb.run(`
         manufacturer TEXT,
         product_type TEXT,
         quantity INTEGER NOT NULL DEFAULT 1,
-        claim_reason TEXT DEFAULT 'Manufacturing Defect',
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
 `);

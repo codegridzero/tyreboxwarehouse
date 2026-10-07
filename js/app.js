@@ -230,25 +230,23 @@ class WarehouseApp {
         this.btnOpenAddClaim = document.getElementById('btn-open-add-claim');
         this.btnEmptyAddClaim = document.getElementById('btn-empty-add-claim');
         
-        // Claim KPI Stat elements
-        this.claimStatTotalPcs = document.getElementById('claim-stat-total-pcs');
-        this.claimStatTotalRecords = document.getElementById('claim-stat-total-records');
-        this.claimStatDriver1Pcs = document.getElementById('claim-stat-driver1-pcs');
-        this.claimStatDriver2Pcs = document.getElementById('claim-stat-driver2-pcs');
-        this.claimStatDriver3Pcs = document.getElementById('claim-stat-driver3-pcs');
-        this.claimDriver1Label = document.getElementById('claim-driver1-label');
-        this.claimDriver2Label = document.getElementById('claim-driver2-label');
-        this.claimDriver3Label = document.getElementById('claim-driver3-label');
+        // Claim Latest Date Graphical Overview elements
+        this.claimLatestDateBadge = document.getElementById('claim-latest-date-badge');
+        this.claimLatestTotalPcs = document.getElementById('claim-latest-total-pcs');
+        this.claimLatestTotalRecords = document.getElementById('claim-latest-total-records');
+        this.claimsLatestDriversGrid = document.getElementById('claims-latest-drivers-grid');
+        this.claimsLogDateLabel = document.getElementById('claims-log-date-label');
 
-        // Claim Filter elements
+        // Claim Filter elements (in Company Monthly Summary subtab)
         this.claimFilterFrom = document.getElementById('claim-filter-from');
         this.claimFilterTo = document.getElementById('claim-filter-to');
         this.claimFilterDriver = document.getElementById('claim-filter-driver');
-        this.claimFilterSearch = document.getElementById('claim-filter-search');
+        this.btnShareClaimsReport = document.getElementById('btn-share-claims-report');
         this.btnClaimFilterReset = document.getElementById('btn-claim-filter-reset');
         this.btnClaimPeriodAll = document.getElementById('btn-claim-period-all');
         this.btnClaimPeriodMonth = document.getElementById('btn-claim-period-month');
         this.btnClaimPeriodLast = document.getElementById('btn-claim-period-last');
+        this.claimsSummaryFilterBadge = document.getElementById('claims-summary-filter-badge');
 
         // Claim Subtabs & Tables
         this.tabBtnClaimLog = document.getElementById('tab-btn-claim-log');
@@ -273,12 +271,22 @@ class WarehouseApp {
         this.formClaimTruck = document.getElementById('form-claim-truck');
         this.formClaimShop = document.getElementById('form-claim-shop');
         this.formClaimNotes = document.getElementById('form-claim-notes');
-        this.formClaimItemsContainer = document.getElementById('form-claim-items-container');
+
+        // Claim Product Search Autocomplete & Table elements
+        this.claimProductSearch = document.getElementById('claim-product-search');
+        this.claimProductDropdown = document.getElementById('claim-product-dropdown');
+        this.claimQuickQty = document.getElementById('claim-quick-qty');
+        this.btnAddClaimProductRow = document.getElementById('btn-add-claim-product-row');
+        this.claimSelectedProductBox = document.getElementById('claim-selected-product-box');
+        this.claimSelectedProductLabel = document.getElementById('claim-selected-product-label');
+        this.claimItemsTbody = document.getElementById('claim-items-tbody');
         this.formClaimItemsCountBadge = document.getElementById('form-claim-items-count-badge');
-        this.btnAddClaimRow = document.getElementById('btn-add-claim-row');
         this.formClaimTotalPieces = document.getElementById('form-claim-total-pieces');
         this.btnCloseClaimModal = document.getElementById('btn-close-claim-modal');
         this.btnCancelClaimModal = document.getElementById('btn-cancel-claim-modal');
+
+        this.selectedClaimProduct = null;
+        this.currentClaimItems = []; // [{ product_id, display_name, manufacturer, product_type, quantity }]
 
         // Claim Print Modal
         this.claimPrintModal = document.getElementById('claim-print-modal');
@@ -773,16 +781,16 @@ class WarehouseApp {
         if (this.tabBtnClaimLog) this.tabBtnClaimLog.addEventListener('click', () => this.switchClaimsSubtab('log'));
         if (this.tabBtnClaimSummary) this.tabBtnClaimSummary.addEventListener('click', () => this.switchClaimsSubtab('summary'));
 
-        // Claim Filter Controls
-        if (this.claimFilterFrom) this.claimFilterFrom.addEventListener('change', () => this.applyClaimsFilters());
-        if (this.claimFilterTo) this.claimFilterTo.addEventListener('change', () => this.applyClaimsFilters());
-        if (this.claimFilterDriver) this.claimFilterDriver.addEventListener('change', () => this.applyClaimsFilters());
-        if (this.claimFilterSearch) this.claimFilterSearch.addEventListener('input', () => this.applyClaimsFilters());
-        if (this.btnClaimFilterReset) this.btnClaimFilterReset.addEventListener('click', () => this.resetClaimsFilters());
+        // Claim Filter Controls (Inside Company Summary Tab)
+        if (this.claimFilterFrom) this.claimFilterFrom.addEventListener('change', () => this.applyCompanySummaryFilters());
+        if (this.claimFilterTo) this.claimFilterTo.addEventListener('change', () => this.applyCompanySummaryFilters());
+        if (this.claimFilterDriver) this.claimFilterDriver.addEventListener('change', () => this.applyCompanySummaryFilters());
+        if (this.btnShareClaimsReport) this.btnShareClaimsReport.addEventListener('click', () => this.handleShareClaimsReport());
+        if (this.btnClaimFilterReset) this.btnClaimFilterReset.addEventListener('click', () => this.resetCompanySummaryFilters());
         
-        if (this.btnClaimPeriodAll) this.btnClaimPeriodAll.addEventListener('click', () => this.setClaimsFilterPeriod('all'));
-        if (this.btnClaimPeriodMonth) this.btnClaimPeriodMonth.addEventListener('click', () => this.setClaimsFilterPeriod('month'));
-        if (this.btnClaimPeriodLast) this.btnClaimPeriodLast.addEventListener('click', () => this.setClaimsFilterPeriod('last'));
+        if (this.btnClaimPeriodAll) this.btnClaimPeriodAll.addEventListener('click', () => this.setCompanySummaryFilterPeriod('all'));
+        if (this.btnClaimPeriodMonth) this.btnClaimPeriodMonth.addEventListener('click', () => this.setCompanySummaryFilterPeriod('month'));
+        if (this.btnClaimPeriodLast) this.btnClaimPeriodLast.addEventListener('click', () => this.setCompanySummaryFilterPeriod('last'));
 
         // Add Claim Modal Actions
         if (this.btnOpenAddClaim) this.btnOpenAddClaim.addEventListener('click', () => this.openAddClaimModal());
@@ -794,9 +802,40 @@ class WarehouseApp {
                 if (e.target === this.claimModal) this.closeAddClaimModal();
             });
         }
-        if (this.btnAddClaimRow) this.btnAddClaimRow.addEventListener('click', () => this.addClaimItemRow());
         if (this.formClaimDriver) this.formClaimDriver.addEventListener('change', () => this.handleClaimDriverChange());
         if (this.claimForm) this.claimForm.addEventListener('submit', (e) => this.handleClaimFormSubmit(e));
+
+        // Claim Product Autocomplete & Add Actions
+        if (this.claimProductSearch) {
+            this.claimProductSearch.addEventListener('input', (e) => {
+                this.handleClaimProductSearch(e.target.value);
+            });
+            this.claimProductSearch.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addSelectedProductToClaim();
+                }
+            });
+        }
+
+        if (this.claimQuickQty) {
+            this.claimQuickQty.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addSelectedProductToClaim();
+                }
+            });
+        }
+
+        if (this.btnAddClaimProductRow) {
+            this.btnAddClaimProductRow.addEventListener('click', () => this.addSelectedProductToClaim());
+        }
+
+        document.addEventListener('click', (e) => {
+            if (this.claimProductDropdown && !this.claimProductDropdown.contains(e.target) && e.target !== this.claimProductSearch) {
+                this.claimProductDropdown.classList.add('hidden');
+            }
+        });
 
         // Print Claims Modal Actions
         if (this.btnOpenPrintClaimsModal) this.btnOpenPrintClaimsModal.addEventListener('click', () => this.openClaimPrintModal());
@@ -3288,7 +3327,8 @@ class WarehouseApp {
 
             this.populateClaimFilterDrivers();
             this.populateClaimPrintDrivers();
-            this.applyClaimsFilters();
+            this.renderDailyClaimsLog();
+            this.applyCompanySummaryFilters();
         } catch (err) {
             console.error('Error loading claims:', err);
         }
@@ -3298,26 +3338,124 @@ class WarehouseApp {
         this.claimsSubtab = tab;
         if (tab === 'summary') {
             if (this.tabBtnClaimLog) {
-                this.tabBtnClaimLog.className = 'px-3.5 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 cursor-pointer';
+                this.tabBtnClaimLog.className = 'px-4 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-2 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 cursor-pointer';
             }
             if (this.tabBtnClaimSummary) {
-                this.tabBtnClaimSummary.className = 'px-3.5 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-sky-600 text-white shadow-xs cursor-pointer';
+                this.tabBtnClaimSummary.className = 'px-4 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-sky-600 text-white shadow-xs cursor-pointer';
             }
             if (this.containerClaimsLogTable) this.containerClaimsLogTable.classList.add('hidden');
             if (this.containerClaimsSummaryTable) this.containerClaimsSummaryTable.classList.remove('hidden');
+            this.applyCompanySummaryFilters();
         } else {
             if (this.tabBtnClaimLog) {
-                this.tabBtnClaimLog.className = 'px-3.5 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-sky-600 text-white shadow-xs cursor-pointer';
+                this.tabBtnClaimLog.className = 'px-4 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-2 bg-sky-600 text-white shadow-xs cursor-pointer';
             }
             if (this.tabBtnClaimSummary) {
-                this.tabBtnClaimSummary.className = 'px-3.5 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 cursor-pointer';
+                this.tabBtnClaimSummary.className = 'px-4 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 cursor-pointer';
             }
             if (this.containerClaimsSummaryTable) this.containerClaimsSummaryTable.classList.add('hidden');
             if (this.containerClaimsLogTable) this.containerClaimsLogTable.classList.remove('hidden');
+            this.renderDailyClaimsLog();
         }
     }
 
-    setClaimsFilterPeriod(period) {
+    renderDailyClaimsLog() {
+        const allClaims = this.claims || [];
+        const latestDate = allClaims.length > 0 ? allClaims[0].claim_date : null;
+        const latestClaims = latestDate ? allClaims.filter(c => c.claim_date === latestDate) : [];
+
+        if (this.badgeClaimsTableCount) {
+            this.badgeClaimsTableCount.textContent = latestClaims.length;
+        }
+
+        if (latestDate && latestClaims.length > 0) {
+            const formattedDate = this.formatDate(latestDate);
+            if (this.claimLatestDateBadge) this.claimLatestDateBadge.textContent = formattedDate;
+            if (this.claimsLogDateLabel) this.claimsLogDateLabel.textContent = formattedDate;
+
+            let latestDayPcs = 0;
+            latestClaims.forEach(c => {
+                latestDayPcs += (parseInt(c.total_items, 10) || 0);
+            });
+
+            if (this.claimLatestTotalPcs) this.claimLatestTotalPcs.textContent = this.formatNumber(latestDayPcs);
+            if (this.claimLatestTotalRecords) this.claimLatestTotalRecords.textContent = latestClaims.length;
+
+            // Group driver totals on the latest date
+            if (this.claimsLatestDriversGrid) {
+                const driverMap = new Map();
+                latestClaims.forEach(c => {
+                    const dName = c.driver_name || 'Driver';
+                    const dTruck = c.truck_name || 'Vehicle';
+                    const pcs = parseInt(c.total_items, 10) || 0;
+                    if (!driverMap.has(dName)) {
+                        driverMap.set(dName, { name: dName, truck: dTruck, pcs: 0, chits: 0 });
+                    }
+                    const rec = driverMap.get(dName);
+                    rec.pcs += pcs;
+                    rec.chits += 1;
+                });
+
+                const colorThemes = [
+                    { bg: 'bg-sky-500/20', border: 'border-sky-400/30', text: 'text-sky-300', bar: 'bg-sky-400', icon: '🚚' },
+                    { bg: 'bg-emerald-500/20', border: 'border-emerald-400/30', text: 'text-emerald-300', bar: 'bg-emerald-400', icon: '🚛' },
+                    { bg: 'bg-purple-500/20', border: 'border-purple-400/30', text: 'text-purple-300', bar: 'bg-purple-400', icon: '🚐' },
+                    { bg: 'bg-amber-500/20', border: 'border-amber-400/30', text: 'text-amber-300', bar: 'bg-amber-400', icon: '📦' }
+                ];
+
+                this.claimsLatestDriversGrid.innerHTML = Array.from(driverMap.values()).map((d, idx) => {
+                    const pct = latestDayPcs > 0 ? Math.round((d.pcs / latestDayPcs) * 100) : 0;
+                    const theme = colorThemes[idx % colorThemes.length];
+
+                    return `
+                        <div class="bg-white/5 backdrop-blur-md p-3.5 rounded-xl border ${theme.border} flex flex-col justify-between space-y-2.5 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-8 h-8 rounded-lg ${theme.bg} flex items-center justify-center text-sm font-bold">
+                                        ${theme.icon}
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-white">${this.escapeHtml(d.name)}</h4>
+                                        <p class="text-[10px] text-slate-400 truncate max-w-[130px]">${this.escapeHtml(d.truck)}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono font-black text-sm ${theme.text}">${d.pcs} <span class="text-[10px] font-normal text-slate-400">pcs</span></div>
+                                    <div class="text-[9px] text-slate-400">${d.chits} chit${d.chits > 1 ? 's' : ''}</div>
+                                </div>
+                            </div>
+                            <!-- Graphical Progress Bar -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[9px] text-slate-400 font-medium">
+                                    <span>Contribution</span>
+                                    <span class="font-bold text-white">${pct}%</span>
+                                </div>
+                                <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                                    <div class="${theme.bar} h-1.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } else {
+            if (this.claimLatestDateBadge) this.claimLatestDateBadge.textContent = 'No claims recorded';
+            if (this.claimsLogDateLabel) this.claimsLogDateLabel.textContent = '';
+            if (this.claimLatestTotalPcs) this.claimLatestTotalPcs.textContent = '0';
+            if (this.claimLatestTotalRecords) this.claimLatestTotalRecords.textContent = '0';
+            if (this.claimsLatestDriversGrid) {
+                this.claimsLatestDriversGrid.innerHTML = `
+                    <div class="col-span-full text-center py-6 text-xs text-slate-400 font-medium">
+                        No warranty claims recorded in the system yet. Click "+ Record Daily Claim" to add entries.
+                    </div>
+                `;
+            }
+        }
+
+        this.renderClaimsTable(latestClaims);
+    }
+
+    setCompanySummaryFilterPeriod(period) {
         const updatePillStyles = (activeBtn) => {
             [this.btnClaimPeriodAll, this.btnClaimPeriodMonth, this.btnClaimPeriodLast].forEach(b => {
                 if (b) {
@@ -3352,15 +3490,14 @@ class WarehouseApp {
             if (this.claimFilterTo) this.claimFilterTo.value = '';
         }
 
-        this.applyClaimsFilters();
+        this.applyCompanySummaryFilters();
     }
 
-    resetClaimsFilters() {
+    resetCompanySummaryFilters() {
         if (this.claimFilterFrom) this.claimFilterFrom.value = '';
         if (this.claimFilterTo) this.claimFilterTo.value = '';
         if (this.claimFilterDriver) this.claimFilterDriver.value = 'all';
-        if (this.claimFilterSearch) this.claimFilterSearch.value = '';
-        this.setClaimsFilterPeriod('all');
+        this.setCompanySummaryFilterPeriod('all');
     }
 
     populateClaimFilterDrivers() {
@@ -3391,90 +3528,47 @@ class WarehouseApp {
         this.printClaimDriverSelect.innerHTML = optionsHtml;
     }
 
-    applyClaimsFilters() {
+    applyCompanySummaryFilters() {
         const fromDate = this.claimFilterFrom ? this.claimFilterFrom.value : '';
         const toDate = this.claimFilterTo ? this.claimFilterTo.value : '';
         const driverId = this.claimFilterDriver ? this.claimFilterDriver.value : 'all';
-        const query = this.claimFilterSearch ? this.claimFilterSearch.value.trim().toLowerCase() : '';
 
-        // Fetch all claim_items to support product/reason level filtering
-        const allItems = dbManager.query('SELECT * FROM claim_items');
-        const itemsByClaim = new Map();
-        allItems.forEach(item => {
-            if (!itemsByClaim.has(item.claim_id)) itemsByClaim.set(item.claim_id, []);
-            itemsByClaim.get(item.claim_id).push(item);
-        });
-
-        const filteredClaims = this.claims.filter(c => {
+        const filteredClaims = (this.claims || []).filter(c => {
             if (fromDate && c.claim_date < fromDate) return false;
             if (toDate && c.claim_date > toDate) return false;
             if (driverId !== 'all' && String(c.driver_id) !== String(driverId)) return false;
-
-            if (query) {
-                const codeMatch = String(c.claim_code || '').toLowerCase().includes(query);
-                const driverMatch = String(c.driver_name || '').toLowerCase().includes(query);
-                const truckMatch = String(c.truck_name || '').toLowerCase().includes(query);
-                const shopMatch = String(c.customer_shop || '').toLowerCase().includes(query);
-                const notesMatch = String(c.notes || '').toLowerCase().includes(query);
-
-                const claimItems = itemsByClaim.get(c.id) || [];
-                const itemMatch = claimItems.some(i => 
-                    String(i.display_name || '').toLowerCase().includes(query) ||
-                    String(i.manufacturer || '').toLowerCase().includes(query) ||
-                    String(i.claim_reason || '').toLowerCase().includes(query) ||
-                    String(i.product_type || '').toLowerCase().includes(query)
-                );
-
-                if (!codeMatch && !driverMatch && !truckMatch && !shopMatch && !notesMatch && !itemMatch) {
-                    return false;
-                }
-            }
             return true;
         });
 
-        this.renderClaimsSummaryCards(filteredClaims, allItems);
-        this.renderClaimsTable(filteredClaims);
+        if (this.claimsSummaryFilterBadge) {
+            let driverLabel = 'All Drivers (Combined)';
+            if (driverId !== 'all') {
+                const sel = this.claimFilterDriver ? this.claimFilterDriver.options[this.claimFilterDriver.selectedIndex] : null;
+                driverLabel = sel ? sel.textContent : 'Driver';
+            }
+            const periodLabel = (fromDate && toDate)
+                ? `${this.formatDate(fromDate)} to ${this.formatDate(toDate)}`
+                : (fromDate ? `From ${this.formatDate(fromDate)}` : (toDate ? `Up to ${this.formatDate(toDate)}` : 'All Time'));
+            this.claimsSummaryFilterBadge.textContent = `${driverLabel} • ${periodLabel}`;
+        }
+
+        const allItems = dbManager.query('SELECT * FROM claim_items');
         this.renderClaimsSummaryTable(filteredClaims, allItems);
     }
 
-    renderClaimsSummaryCards(filteredClaims, allItems) {
-        let grandTotalPieces = 0;
-        filteredClaims.forEach(c => {
-            grandTotalPieces += (parseInt(c.total_items, 10) || 0);
-        });
+    handleShareClaimsReport() {
+        const fromDate = this.claimFilterFrom ? this.claimFilterFrom.value : '';
+        const toDate = this.claimFilterTo ? this.claimFilterTo.value : '';
+        const driverId = this.claimFilterDriver ? this.claimFilterDriver.value : 'all';
 
-        if (this.claimStatTotalPcs) this.claimStatTotalPcs.textContent = this.formatNumber(grandTotalPieces);
-        if (this.claimStatTotalRecords) {
-            this.claimStatTotalRecords.textContent = `${filteredClaims.length} claim ${filteredClaims.length === 1 ? 'entry' : 'entries'} recorded`;
+        let url = `report-preview.html?type=claims&mode=combined`;
+        if (fromDate) url += `&from=${encodeURIComponent(fromDate)}`;
+        if (toDate) url += `&to=${encodeURIComponent(toDate)}`;
+        if (driverId && driverId !== 'all') {
+            url += `&driver_id=${encodeURIComponent(driverId)}`;
         }
 
-        // Driver pieces calculation
-        const driverTotals = new Map();
-        filteredClaims.forEach(c => {
-            const dName = c.driver_name || 'Driver';
-            const pcs = (parseInt(c.total_items, 10) || 0);
-            driverTotals.set(dName, (driverTotals.get(dName) || 0) + pcs);
-        });
-
-        const activeDriversList = this.drivers && this.drivers.length > 0
-            ? this.drivers
-            : dbManager.query('SELECT * FROM drivers ORDER BY id ASC LIMIT 3');
-
-        // Driver 1
-        if (activeDriversList[0]) {
-            if (this.claimDriver1Label) this.claimDriver1Label.textContent = activeDriversList[0].name;
-            if (this.claimStatDriver1Pcs) this.claimStatDriver1Pcs.textContent = this.formatNumber(driverTotals.get(activeDriversList[0].name) || 0);
-        }
-        // Driver 2
-        if (activeDriversList[1]) {
-            if (this.claimDriver2Label) this.claimDriver2Label.textContent = activeDriversList[1].name;
-            if (this.claimStatDriver2Pcs) this.claimStatDriver2Pcs.textContent = this.formatNumber(driverTotals.get(activeDriversList[1].name) || 0);
-        }
-        // Driver 3
-        if (activeDriversList[2]) {
-            if (this.claimDriver3Label) this.claimDriver3Label.textContent = activeDriversList[2].name;
-            if (this.claimStatDriver3Pcs) this.claimStatDriver3Pcs.textContent = this.formatNumber(driverTotals.get(activeDriversList[2].name) || 0);
-        }
+        window.open(url, '_blank');
     }
 
     renderClaimsTable(filteredClaims) {
@@ -3600,13 +3694,11 @@ class WarehouseApp {
                     manufacturer: item.manufacturer || 'General',
                     product_type: item.product_type || 'Part',
                     display_name: item.display_name,
-                    reasons: new Set(),
                     totalQty: 0
                 });
             }
             const record = summaryMap.get(key);
             record.totalQty += qty;
-            if (item.claim_reason) record.reasons.add(item.claim_reason);
         });
 
         const sortedRecords = Array.from(summaryMap.values()).sort((a, b) => {
@@ -3619,7 +3711,7 @@ class WarehouseApp {
         if (sortedRecords.length === 0) {
             this.claimsSummaryTableTbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="p-4 text-center text-gray-500 font-semibold text-xs">
+                    <td colspan="6" class="p-4 text-center text-gray-500 font-semibold text-xs">
                         No defective product items found in the selected claims.
                     </td>
                 </tr>
@@ -3630,14 +3722,12 @@ class WarehouseApp {
 
         this.claimsSummaryTableTbody.innerHTML = sortedRecords.map((rec, index) => {
             const percent = grandTotal > 0 ? ((rec.totalQty / grandTotal) * 100).toFixed(1) : 0;
-            const reasonsStr = Array.from(rec.reasons).join(', ') || 'Manufacturing Defect';
             return `
                 <tr class="hover:bg-slate-50">
                     <td class="p-2 border border-black text-center font-mono">${index + 1}</td>
                     <td class="p-2 border border-black font-bold uppercase">${this.escapeHtml(rec.manufacturer)}</td>
                     <td class="p-2 border border-black">${this.escapeHtml(rec.product_type)}</td>
                     <td class="p-2 border border-black font-semibold text-black">${this.escapeHtml(rec.display_name)}</td>
-                    <td class="p-2 border border-black text-gray-600">${this.escapeHtml(reasonsStr)}</td>
                     <td class="p-2 border border-black text-right font-mono font-bold text-sm">${rec.totalQty}</td>
                     <td class="p-2 border border-black text-right font-mono">${percent}%</td>
                 </tr>
@@ -3652,6 +3742,16 @@ class WarehouseApp {
     openAddClaimModal(claimId = null) {
         if (this.claimForm) this.claimForm.reset();
         if (this.formClaimId) this.formClaimId.value = '';
+        this.selectedClaimProduct = null;
+        this.currentClaimItems = [];
+
+        if (this.claimProductSearch) this.claimProductSearch.value = '';
+        if (this.claimProductDropdown) {
+            this.claimProductDropdown.classList.add('hidden');
+            this.claimProductDropdown.innerHTML = '';
+        }
+        if (this.claimQuickQty) this.claimQuickQty.value = '1';
+        if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
 
         // Default date to today
         if (this.formClaimDate) {
@@ -3682,11 +3782,32 @@ class WarehouseApp {
             this.formClaimTruck.innerHTML = tHtml;
         }
 
-        // Clear Items Container and add 1 default row
-        if (this.formClaimItemsContainer) {
-            this.formClaimItemsContainer.innerHTML = '';
-            this.addClaimItemRow();
+        if (claimId) {
+            // Edit existing claim
+            const claim = this.claims.find(c => c.id === claimId);
+            if (claim) {
+                if (this.formClaimId) this.formClaimId.value = claim.id;
+                if (this.claimModalTitle) this.claimModalTitle.textContent = `Edit Claim: ${claim.claim_code || ('CLM-' + claim.id)}`;
+                if (this.formClaimDate) this.formClaimDate.value = claim.claim_date;
+                if (this.formClaimDriver) this.formClaimDriver.value = claim.driver_id;
+                if (this.formClaimTruck) this.formClaimTruck.value = claim.truck_id || '';
+                if (this.formClaimShop) this.formClaimShop.value = claim.customer_shop || '';
+                if (this.formClaimNotes) this.formClaimNotes.value = claim.notes || '';
+
+                const items = dbManager.query('SELECT * FROM claim_items WHERE claim_id = ?', [claimId]);
+                this.currentClaimItems = items.map(i => ({
+                    product_id: i.product_id,
+                    display_name: i.display_name,
+                    manufacturer: i.manufacturer || '',
+                    product_type: i.product_type || '',
+                    quantity: parseInt(i.quantity, 10) || 1
+                }));
+            }
+        } else {
+            if (this.claimModalTitle) this.claimModalTitle.textContent = 'Record Daily Warranty Claim';
         }
+
+        this.renderClaimItemsTable();
 
         if (this.claimModal) {
             this.claimModal.classList.remove('hidden');
@@ -3696,6 +3817,7 @@ class WarehouseApp {
                     this.claimModalCard.classList.remove('scale-95');
                     this.claimModalCard.classList.add('scale-100');
                 }
+                if (this.claimProductSearch) this.claimProductSearch.focus();
             }, 10);
         }
     }
@@ -3725,112 +3847,216 @@ class WarehouseApp {
         }
     }
 
-    addClaimItemRow(existingItem = null) {
-        if (!this.formClaimItemsContainer) return;
+    handleClaimProductSearch(query) {
+        if (!this.claimProductDropdown) return;
+        const q = (query || '').trim().toLowerCase();
 
-        const rowDiv = document.createElement('div');
-        rowDiv.className = 'claim-item-row grid grid-cols-1 sm:grid-cols-12 gap-2 p-2.5 bg-slate-50 rounded-xl border border-gray-200 items-center transition';
-
-        const catalogProducts = this.products && this.products.length > 0
-            ? this.products
-            : dbManager.query('SELECT * FROM products ORDER BY manufacturer ASC, product_type ASC, product_number ASC');
-
-        let prodOptions = '<option value="">-- Choose Catalog Product --</option>';
-        catalogProducts.forEach(p => {
-            const formatted = this.formatReportProductName(p);
-            const mfg = p.manufacturer ? ` [${p.manufacturer}]` : '';
-            prodOptions += `<option value="${p.id}" data-name="${this.escapeHtml(formatted)}" data-type="${this.escapeHtml(p.product_type || '')}" data-mfg="${this.escapeHtml(p.manufacturer || '')}">${this.escapeHtml(formatted)}${this.escapeHtml(mfg)}</option>`;
-        });
-
-        const defectReasons = [
-            'Manufacturing Defect',
-            'Bead Cut / Defect',
-            'Bulge / Bubble',
-            'Sidewall Crack',
-            'Joint Leakage',
-            'Tube Valve Leak',
-            'Link Snapped',
-            'Chain Broken',
-            'Can Seal Leakage',
-            'Dead Cell',
-            'Rim Bend / Dent',
-            'Other Defect'
-        ];
-
-        let reasonOptions = defectReasons.map(r => `<option value="${r}">${r}</option>`).join('');
-
-        rowDiv.innerHTML = `
-            <!-- Product Select (6 cols) -->
-            <div class="sm:col-span-6">
-                <select class="claim-item-product w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-sky-500 outline-none bg-white cursor-pointer" required>
-                    ${prodOptions}
-                </select>
-            </div>
-
-            <!-- Quantity Input (2 cols) -->
-            <div class="sm:col-span-2">
-                <input type="number" min="1" step="1" value="${existingItem ? existingItem.quantity : 1}" class="claim-item-qty w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-bold text-center focus:ring-2 focus:ring-sky-500 outline-none" required>
-            </div>
-
-            <!-- Defect Reason (3 cols) -->
-            <div class="sm:col-span-3">
-                <select class="claim-item-reason w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-sky-500 outline-none bg-white cursor-pointer">
-                    ${reasonOptions}
-                </select>
-            </div>
-
-            <!-- Remove Button (1 col) -->
-            <div class="sm:col-span-1 text-right">
-                <button type="button" class="btn-remove-claim-row text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer" title="Remove this row">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
-            </div>
-        `;
-
-        const removeBtn = rowDiv.querySelector('.btn-remove-claim-row');
-        removeBtn.addEventListener('click', () => {
-            const allRows = this.formClaimItemsContainer.querySelectorAll('.claim-item-row');
-            if (allRows.length > 1) {
-                rowDiv.remove();
-                this.updateClaimFormPiecesTotal();
-            } else {
-                this.showToast('Claim must have at least one product row.', 'info');
-            }
-        });
-
-        const qtyInput = rowDiv.querySelector('.claim-item-qty');
-        qtyInput.addEventListener('input', () => this.updateClaimFormPiecesTotal());
-
-        const prodSelect = rowDiv.querySelector('.claim-item-product');
-        prodSelect.addEventListener('change', () => this.updateClaimFormPiecesTotal());
-
-        if (existingItem) {
-            prodSelect.value = existingItem.product_id;
-            const reasonSelect = rowDiv.querySelector('.claim-item-reason');
-            if (reasonSelect && existingItem.claim_reason) reasonSelect.value = existingItem.claim_reason;
+        if (!q) {
+            this.claimProductDropdown.classList.add('hidden');
+            this.claimProductDropdown.innerHTML = '';
+            this.selectedClaimProduct = null;
+            if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
+            return;
         }
 
-        this.formClaimItemsContainer.appendChild(rowDiv);
+        const matches = this.products.filter(p => this.matchesProductSearch(p, q)).slice(0, 10);
+
+        if (matches.length === 0) {
+            this.claimProductDropdown.innerHTML = `<div class="p-3 text-xs text-gray-500 italic text-center">No matching products found</div>`;
+            this.claimProductDropdown.classList.remove('hidden');
+            this.selectedClaimProduct = null;
+            if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
+            return;
+        }
+
+        this.claimProductDropdown.innerHTML = matches.map(p => {
+            const fullDisp = this.getProductDisplayName(p);
+            const mfgInfo = p.manufacturer ? `<span class="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded font-bold">${this.escapeHtml(p.manufacturer)}</span>` : '';
+            const catInfo = p.category ? `<span class="text-[10px] text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded font-bold">${this.escapeHtml(p.category)}</span>` : '';
+            
+            let itemImages = [];
+            try { itemImages = JSON.parse(p.images || '[]'); } catch (e) { itemImages = []; }
+            const hasImg = Array.isArray(itemImages) && itemImages.length > 0;
+            const thumbImg = hasImg
+                ? `<img src="${itemImages[0]}" alt="${this.escapeHtml(fullDisp)}" class="w-8 h-8 rounded-lg object-cover border border-gray-200 shrink-0">`
+                : `<div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 shrink-0 text-xs">🛡️</div>`;
+
+            return `
+                <button type="button" data-product-id="${p.id}" class="w-full text-left px-3 py-2 hover:bg-sky-50 transition flex items-center justify-between group cursor-pointer">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        ${thumbImg}
+                        <div class="min-w-0">
+                            <div class="font-bold text-gray-900 text-xs group-hover:text-sky-700 truncate">${this.escapeHtml(fullDisp)}</div>
+                            <div class="text-[10px] text-gray-500">${this.escapeHtml(p.product_type)} | ${this.escapeHtml(p.strength || 'Nill')}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1 shrink-0 ml-2">
+                        ${catInfo}
+                        ${mfgInfo}
+                    </div>
+                </button>
+            `;
+        }).join('');
+
+        this.claimProductDropdown.classList.remove('hidden');
+
+        // Automatically set first match
+        this.selectedClaimProduct = matches[0];
+        if (this.claimSelectedProductBox && this.claimSelectedProductLabel) {
+            this.claimSelectedProductLabel.textContent = `Selected: ${this.getProductDisplayName(matches[0])}`;
+            this.claimSelectedProductBox.classList.remove('hidden');
+        }
+
+        // Attach click listener on dropdown items
+        this.claimProductDropdown.querySelectorAll('button[data-product-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-product-id'), 10);
+                const prod = this.products.find(p => p.id === id);
+                if (prod) {
+                    this.selectedClaimProduct = prod;
+                    if (this.claimProductSearch) this.claimProductSearch.value = this.getProductDisplayName(prod);
+                    if (this.claimSelectedProductBox && this.claimSelectedProductLabel) {
+                        this.claimSelectedProductLabel.textContent = `Selected: ${this.getProductDisplayName(prod)}`;
+                        this.claimSelectedProductBox.classList.remove('hidden');
+                    }
+                    this.claimProductDropdown.classList.add('hidden');
+                    if (this.claimQuickQty) {
+                        this.claimQuickQty.focus();
+                        this.claimQuickQty.select();
+                    }
+                }
+            });
+        });
+    }
+
+    addSelectedProductToClaim() {
+        if (!this.selectedClaimProduct) {
+            const query = (this.claimProductSearch ? this.claimProductSearch.value : '').trim();
+            if (query) {
+                const match = this.products.find(p => this.matchesProductSearch(p, query));
+                if (match) {
+                    this.selectedClaimProduct = match;
+                }
+            }
+        }
+
+        if (!this.selectedClaimProduct) {
+            this.showToast('Please search and select a product first', 'warning');
+            if (this.claimProductSearch) this.claimProductSearch.focus();
+            return;
+        }
+
+        const qty = parseInt(this.claimQuickQty ? this.claimQuickQty.value : 1, 10) || 1;
+        if (qty <= 0) {
+            this.showToast('Quantity must be at least 1', 'warning');
+            return;
+        }
+
+        const prod = this.selectedClaimProduct;
+        const displayName = this.getProductDisplayName(prod);
+
+        const existing = this.currentClaimItems.find(item => item.product_id === prod.id);
+        if (existing) {
+            existing.quantity += qty;
+            this.showToast(`Updated quantity to ${existing.quantity} for ${displayName}`, 'info');
+        } else {
+            this.currentClaimItems.push({
+                product_id: prod.id,
+                display_name: displayName,
+                manufacturer: prod.manufacturer || 'General',
+                product_type: prod.product_type || 'Part',
+                quantity: qty
+            });
+            this.showToast(`Added "${displayName}" (${qty} pcs) to claim!`, 'success');
+        }
+
+        this.selectedClaimProduct = null;
+        if (this.claimProductSearch) this.claimProductSearch.value = '';
+        if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
+        if (this.claimQuickQty) this.claimQuickQty.value = '1';
+        if (this.claimProductDropdown) this.claimProductDropdown.classList.add('hidden');
+
+        this.renderClaimItemsTable();
+        if (this.claimProductSearch) this.claimProductSearch.focus();
+    }
+
+    renderClaimItemsTable() {
+        if (!this.claimItemsTbody) return;
+
+        if (this.currentClaimItems.length === 0) {
+            this.claimItemsTbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-400 italic text-xs">
+                        No defective products added yet. Use the search bar above to add products.
+                    </td>
+                </tr>
+            `;
+            if (this.formClaimTotalPieces) this.formClaimTotalPieces.textContent = '0';
+            if (this.formClaimItemsCountBadge) this.formClaimItemsCountBadge.textContent = '0 items';
+            return;
+        }
+
+        this.claimItemsTbody.innerHTML = this.currentClaimItems.map((item, index) => {
+            return `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-2 text-center font-mono text-gray-400">${index + 1}</td>
+                    <td class="p-2 font-bold text-gray-900">${this.escapeHtml(item.display_name)}</td>
+                    <td class="p-2 font-semibold text-gray-600">${this.escapeHtml(item.manufacturer || '—')}</td>
+                    <td class="p-2 text-gray-500">${this.escapeHtml(item.product_type || '—')}</td>
+                    <td class="p-2 text-center">
+                        <input type="number" min="1" step="1" value="${item.quantity}" data-item-index="${index}"
+                            class="claim-row-qty-input w-20 px-2 py-1 border border-gray-300 rounded text-xs font-bold text-center font-mono focus:ring-2 focus:ring-sky-500 outline-none">
+                    </td>
+                    <td class="p-2 text-center">
+                        <button type="button" data-remove-index="${index}" class="btn-remove-claim-item text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition cursor-pointer" title="Remove row">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Attach quantity change listeners
+        this.claimItemsTbody.querySelectorAll('.claim-row-qty-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.getAttribute('data-item-index'), 10);
+                const val = parseInt(e.target.value, 10) || 1;
+                if (this.currentClaimItems[idx]) {
+                    this.currentClaimItems[idx].quantity = Math.max(1, val);
+                    this.updateClaimFormPiecesTotal();
+                }
+            });
+        });
+
+        // Attach remove button listeners
+        this.claimItemsTbody.querySelectorAll('.btn-remove-claim-item').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(btn.getAttribute('data-remove-index'), 10);
+                const item = this.currentClaimItems[idx];
+                if (item) {
+                    this.currentClaimItems.splice(idx, 1);
+                    this.showToast(`Removed "${item.display_name}"`, 'info');
+                    this.renderClaimItemsTable();
+                }
+            });
+        });
+
         this.updateClaimFormPiecesTotal();
     }
 
     updateClaimFormPiecesTotal() {
-        if (!this.formClaimItemsContainer) return;
-        const rows = this.formClaimItemsContainer.querySelectorAll('.claim-item-row');
         let totalPcs = 0;
-        rows.forEach(r => {
-            const qtyInput = r.querySelector('.claim-item-qty');
-            const qty = parseInt(qtyInput ? qtyInput.value : 0, 10) || 0;
-            totalPcs += qty;
+        this.currentClaimItems.forEach(i => {
+            totalPcs += (parseInt(i.quantity, 10) || 0);
         });
 
         if (this.formClaimTotalPieces) {
             this.formClaimTotalPieces.textContent = totalPcs;
         }
         if (this.formClaimItemsCountBadge) {
-            this.formClaimItemsCountBadge.textContent = `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`;
+            this.formClaimItemsCountBadge.textContent = `${this.currentClaimItems.length} ${this.currentClaimItems.length === 1 ? 'item' : 'items'}`;
         }
     }
 
@@ -3854,71 +4080,64 @@ class WarehouseApp {
             return;
         }
 
-        // Collect Items
-        const rows = Array.from(this.formClaimItemsContainer.querySelectorAll('.claim-item-row'));
-        const items = [];
-        let totalPcs = 0;
-
-        for (const r of rows) {
-            const prodSelect = r.querySelector('.claim-item-product');
-            const qtyInput = r.querySelector('.claim-item-qty');
-            const reasonSelect = r.querySelector('.claim-item-reason');
-
-            const productId = prodSelect && prodSelect.value ? parseInt(prodSelect.value, 10) : null;
-            const quantity = qtyInput ? parseInt(qtyInput.value, 10) : 0;
-            const reason = reasonSelect ? reasonSelect.value : 'Manufacturing Defect';
-
-            if (!productId || quantity <= 0) {
-                this.showToast('Please select a product and valid quantity for all rows.', 'error');
-                return;
-            }
-
-            const selectedOpt = prodSelect.selectedOptions[0];
-            const displayName = selectedOpt ? selectedOpt.getAttribute('data-name') : 'Product';
-            const mfg = selectedOpt ? selectedOpt.getAttribute('data-mfg') : '';
-            const pType = selectedOpt ? selectedOpt.getAttribute('data-type') : '';
-
-            items.push({
-                product_id: productId,
-                display_name: displayName,
-                manufacturer: mfg,
-                product_type: pType,
-                quantity: quantity,
-                claim_reason: reason
-            });
-
-            totalPcs += quantity;
-        }
-
-        if (items.length === 0) {
-            this.showToast('Please add at least one product item.', 'error');
+        if (this.currentClaimItems.length === 0) {
+            this.showToast('Please search and add at least one defective product.', 'error');
+            if (this.claimProductSearch) this.claimProductSearch.focus();
             return;
         }
 
+        let totalPcs = 0;
+        this.currentClaimItems.forEach(i => {
+            totalPcs += (parseInt(i.quantity, 10) || 0);
+        });
+
         try {
-            // Generate Unique Claim Code e.g. CLM-YYYYMMDD-01
-            const dateClean = date.replace(/-/g, '');
-            const existingCountQuery = dbManager.query('SELECT COUNT(*) as cnt FROM claims WHERE claim_date = ?', [date]);
-            const nextSeq = String((existingCountQuery[0]?.cnt || 0) + 1).padStart(2, '0');
-            const claimCode = `CLM-${dateClean}-${nextSeq}`;
+            const editId = this.formClaimId ? this.formClaimId.value : '';
+            let claimCode = '';
 
-            // Save Claim Header
-            const insertResult = dbManager.run(`
-                INSERT INTO claims (claim_code, claim_date, driver_id, driver_name, truck_id, truck_name, customer_shop, total_items, status, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Received', ?)
-            `, [claimCode, date, parseInt(driverId, 10), driverName, truckId, truckName, customerShop, totalPcs, notes]);
+            if (editId) {
+                const existing = this.claims.find(c => c.id === parseInt(editId, 10));
+                claimCode = existing ? existing.claim_code : `CLM-${editId}`;
 
-            const claimId = insertResult.lastInsertRowId;
-
-            // Save Claim Items
-            items.forEach(item => {
                 dbManager.run(`
-                    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity, claim_reason)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [claimId, item.product_id, item.display_name, item.manufacturer, item.product_type, item.quantity, item.claim_reason]);
-            });
+                    UPDATE claims
+                    SET claim_date = ?, driver_id = ?, driver_name = ?, truck_id = ?, truck_name = ?, customer_shop = ?, total_items = ?, notes = ?, updated_at = datetime('now', 'localtime')
+                    WHERE id = ?
+                `, [date, parseInt(driverId, 10), driverName, truckId, truckName, customerShop, totalPcs, notes, parseInt(editId, 10)]);
 
-            this.showToast(`Claim record ${claimCode} saved successfully (${totalPcs} pcs)!`, 'success');
+                dbManager.run('DELETE FROM claim_items WHERE claim_id = ?', [parseInt(editId, 10)]);
+
+                this.currentClaimItems.forEach(item => {
+                    dbManager.run(`
+                        INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `, [parseInt(editId, 10), item.product_id, item.display_name, item.manufacturer, item.product_type, item.quantity]);
+                });
+
+                this.showToast(`Claim "${claimCode}" updated successfully (${totalPcs} pcs)!`, 'success');
+            } else {
+                const dateClean = date.replace(/-/g, '');
+                const existingCountQuery = dbManager.query('SELECT COUNT(*) as cnt FROM claims WHERE claim_date = ?', [date]);
+                const nextSeq = String((existingCountQuery[0]?.cnt || 0) + 1).padStart(2, '0');
+                claimCode = `CLM-${dateClean}-${nextSeq}`;
+
+                const insertResult = dbManager.run(`
+                    INSERT INTO claims (claim_code, claim_date, driver_id, driver_name, truck_id, truck_name, customer_shop, total_items, status, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Received', ?)
+                `, [claimCode, date, parseInt(driverId, 10), driverName, truckId, truckName, customerShop, totalPcs, notes]);
+
+                const claimId = insertResult.lastInsertRowId;
+
+                this.currentClaimItems.forEach(item => {
+                    dbManager.run(`
+                        INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `, [claimId, item.product_id, item.display_name, item.manufacturer, item.product_type, item.quantity]);
+                });
+
+                this.showToast(`Claim record ${claimCode} saved successfully (${totalPcs} pcs)!`, 'success');
+            }
+
             this.closeAddClaimModal();
             this.loadClaims();
         } catch (err) {
@@ -3968,11 +4187,7 @@ class WarehouseApp {
                         <td class="p-2.5 text-center font-mono text-gray-400">${index + 1}</td>
                         <td class="p-2.5 font-bold text-gray-900">${this.escapeHtml(item.display_name)}</td>
                         <td class="p-2.5 font-semibold text-gray-600">${this.escapeHtml(item.manufacturer || 'General')}</td>
-                        <td class="p-2.5">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                                ${this.escapeHtml(item.claim_reason || 'Manufacturing Defect')}
-                            </span>
-                        </td>
+                        <td class="p-2.5 text-gray-500">${this.escapeHtml(item.product_type || 'Part')}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-gray-900">${item.quantity} pcs</td>
                     </tr>
                 `;

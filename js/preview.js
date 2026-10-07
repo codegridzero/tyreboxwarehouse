@@ -301,7 +301,7 @@ class WarehouseReportPreviewController {
             sql += ' AND c.claim_date <= ?';
             params.push(this.toDate);
         }
-        if (this.claimMode === 'driver' && this.driverId) {
+        if (this.driverId && this.driverId !== 'all') {
             sql += ' AND c.driver_id = ?';
             params.push(parseInt(this.driverId, 10));
         }
@@ -333,7 +333,7 @@ class WarehouseReportPreviewController {
 
     renderClaimsReport() {
         const modeTitle = this.claimMode === 'combined'
-            ? 'Factory Company Return Sheet (Combined)'
+            ? ((this.driverId && this.driverId !== 'all') ? `Factory Return (${this.claims[0]?.driver_name || 'Driver'})` : 'Factory Company Return Sheet (Combined)')
             : (this.claimMode === 'driver'
                 ? `Driver Return Chit (${this.claims[0]?.driver_name || 'Driver'})`
                 : 'Full Complete Warranty Claims Audit Report');
@@ -374,6 +374,8 @@ class WarehouseReportPreviewController {
     buildCombinedCompanyReportHtml(dateRangeStr, grandTotalPieces) {
         const now = new Date();
         const printedStr = `${now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        const driverName = (this.driverId && this.driverId !== 'all' && this.claims[0]) ? (this.claims[0].driver_name || 'Driver') : 'All Drivers';
+        const modeLabel = (this.driverId && this.driverId !== 'all') ? `Factory Return (${this.escapeHtml(driverName)})` : 'Combined Factory Return (All Drivers)';
 
         // Group by Manufacturer & Product
         const summaryMap = new Map();
@@ -389,13 +391,11 @@ class WarehouseReportPreviewController {
                     manufacturer: item.manufacturer || 'General',
                     product_type: item.product_type || 'Part',
                     display_name: item.display_name,
-                    reasons: new Set(),
                     totalQty: 0
                 });
             }
             const record = summaryMap.get(key);
             record.totalQty += qty;
-            if (item.claim_reason) record.reasons.add(item.claim_reason);
         });
 
         const sortedRecords = Array.from(summaryMap.values()).sort((a, b) => {
@@ -407,14 +407,12 @@ class WarehouseReportPreviewController {
 
         const rowsHtml = sortedRecords.map((rec, index) => {
             const percent = totalCounted > 0 ? ((rec.totalQty / totalCounted) * 100).toFixed(1) : 0;
-            const reasonsStr = Array.from(rec.reasons).join(', ') || 'Manufacturing Defect';
             return `
                 <tr>
                     <td class="p-1 px-1 text-center font-mono text-[10px]">${index + 1}</td>
                     <td class="p-1 px-2 font-bold uppercase text-[11px]">${this.escapeHtml(rec.manufacturer)}</td>
                     <td class="p-1 px-2 text-[10px]">${this.escapeHtml(rec.product_type)}</td>
                     <td class="p-1 px-2 font-bold text-[11px] text-black">${this.escapeHtml(rec.display_name)}</td>
-                    <td class="p-1 px-2 text-gray-700 text-[10px]">${this.escapeHtml(reasonsStr)}</td>
                     <td class="p-1 px-2 text-right font-mono font-bold text-[11px]">${rec.totalQty}</td>
                     <td class="p-1 px-2 text-right font-mono text-[10px]">${percent}%</td>
                 </tr>
@@ -433,7 +431,7 @@ class WarehouseReportPreviewController {
                 </thead>
                 <tbody>
                     <tr class="text-[11px]">
-                        <td class="p-1 px-2 w-1/4"><strong>Report Mode:</strong> <span class="font-bold text-amber-900">Combined Factory Return</span></td>
+                        <td class="p-1 px-2 w-1/4"><strong>Report Mode:</strong> <span class="font-bold text-amber-900">${modeLabel}</span></td>
                         <td class="p-1 px-2 w-1/4"><strong>Period:</strong> <span class="font-mono">${this.escapeHtml(dateRangeStr)}</span></td>
                         <td class="p-1 px-2 w-1/4"><strong>Claim Entries:</strong> <span class="font-bold">${this.claims.length} Daily Chits</span></td>
                         <td class="p-1 px-2 w-1/4"><strong>Total Return Units:</strong> <span class="font-mono font-bold text-black">${totalCounted} pcs</span></td>
@@ -458,17 +456,16 @@ class WarehouseReportPreviewController {
                             <th class="py-1 px-2 w-28">Brand / Company</th>
                             <th class="py-1 px-2 w-20">Type</th>
                             <th class="py-1 px-2">Product Specification / Name</th>
-                            <th class="py-1 px-2">Defect Reason / Category</th>
                             <th class="py-1 px-2 text-right w-24">Return Pcs</th>
                             <th class="py-1 px-2 text-right w-16">% Total</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white text-black font-medium text-[11px]">
-                        ${rowsHtml || '<tr><td colspan="7" class="p-4 text-center text-xs">No claim items recorded.</td></tr>'}
+                        ${rowsHtml || '<tr><td colspan="6" class="p-4 text-center text-xs">No claim items recorded.</td></tr>'}
                     </tbody>
                     <tfoot>
                         <tr class="bg-slate-100 font-bold border-t-2 border-b-2 border-black text-black text-[11px]">
-                            <td colspan="5" class="py-1 px-2 text-right uppercase">
+                            <td colspan="4" class="py-1 px-2 text-right uppercase">
                                 Grand Total Factory Return Units:
                             </td>
                             <td class="py-1 px-2 text-right font-mono font-bold">
@@ -535,7 +532,6 @@ class WarehouseReportPreviewController {
                         <td class="p-1 px-2 font-bold uppercase text-[10px]">${this.escapeHtml(item.manufacturer || 'General')}</td>
                         <td class="p-1 px-2 font-bold text-[11px] text-black">${this.escapeHtml(item.display_name)}</td>
                         <td class="p-1 px-2 text-[10px]">${this.escapeHtml(c.customer_shop || '—')}</td>
-                        <td class="p-1 px-2 text-gray-700 text-[10px]">${this.escapeHtml(item.claim_reason || 'Manufacturing Defect')}</td>
                         <td class="p-1 px-2 text-right font-mono font-bold text-[11px]">${qty}</td>
                     </tr>
                 `);
@@ -581,16 +577,15 @@ class WarehouseReportPreviewController {
                             <th class="py-1 px-2 w-24">Brand</th>
                             <th class="py-1 px-2">Product Specification / Name</th>
                             <th class="py-1 px-2 w-32">Customer / Shop</th>
-                            <th class="py-1 px-2">Defect Reason</th>
                             <th class="py-1 px-2 text-right w-20">Qty (Pcs)</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white text-black font-medium text-[11px]">
-                        ${rowsHtmlArr.join('') || '<tr><td colspan="8" class="p-4 text-center text-xs">No claim items recorded for this driver.</td></tr>'}
+                        ${rowsHtmlArr.join('') || '<tr><td colspan="7" class="p-4 text-center text-xs">No claim items recorded for this driver.</td></tr>'}
                     </tbody>
                     <tfoot>
                         <tr class="bg-slate-100 font-bold border-t-2 border-b-2 border-black text-black text-[11px]">
-                            <td colspan="7" class="py-1 px-2 text-right uppercase">
+                            <td colspan="6" class="py-1 px-2 text-right uppercase">
                                 Total Units Returned by Driver:
                             </td>
                             <td class="py-1 px-2 text-right font-mono font-bold">
@@ -656,7 +651,6 @@ class WarehouseReportPreviewController {
                             <td class="p-1 px-2 font-bold uppercase text-[10px]">${this.escapeHtml(item.manufacturer || 'General')}</td>
                             <td class="p-1 px-2 font-bold text-[11px] text-black">${this.escapeHtml(item.display_name)}</td>
                             <td class="p-1 px-2 text-[10px]">${this.escapeHtml(c.customer_shop || '—')}</td>
-                            <td class="p-1 px-2 text-gray-700 text-[10px]">${this.escapeHtml(item.claim_reason || 'Manufacturing Defect')}</td>
                             <td class="p-1 px-2 text-right font-mono font-bold text-[11px]">${qty}</td>
                         </tr>
                     `);
@@ -678,7 +672,6 @@ class WarehouseReportPreviewController {
                                 <th class="py-1 px-2 w-24">Brand</th>
                                 <th class="py-1 px-2">Product Name</th>
                                 <th class="py-1 px-2 w-32">Shop</th>
-                                <th class="py-1 px-2">Reason</th>
                                 <th class="py-1 px-2 text-right w-20">Qty (Pcs)</th>
                             </tr>
                         </thead>
@@ -687,7 +680,7 @@ class WarehouseReportPreviewController {
                         </tbody>
                         <tfoot>
                             <tr class="bg-slate-50 font-bold border-t border-black text-black text-[11px]">
-                                <td colspan="7" class="py-1 px-2 text-right uppercase">Subtotal for ${this.escapeHtml(dName)}:</td>
+                                <td colspan="6" class="py-1 px-2 text-right uppercase">Subtotal for ${this.escapeHtml(dName)}:</td>
                                 <td class="py-1 px-2 text-right font-mono font-bold">${dTotal} pcs</td>
                             </tr>
                         </tfoot>

@@ -109,7 +109,6 @@ db.run(`
         manufacturer TEXT,
         product_type TEXT,
         quantity INTEGER NOT NULL DEFAULT 1,
-        claim_reason TEXT DEFAULT 'Manufacturing Defect',
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
     );
@@ -136,8 +135,8 @@ db.run(`
 
 const claimId = 1;
 db.run(`
-    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity, claim_reason)
-    VALUES (?, 1, 'ANT 2.50.17 6P Tire', 'Panther', 'Tire', 5, 'Manufacturing Defect')
+    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity)
+    VALUES (?, 1, 'ANT 2.50.17 6P Tire', 'Panther', 'Tire', 5)
 `, [claimId]);
 
 const stmt = db.prepare("SELECT * FROM claims WHERE id = 1");
