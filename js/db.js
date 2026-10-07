@@ -175,7 +175,7 @@ class DatabaseManager {
 
                 // Or match by common unique fields
                 if (!match) {
-                    const uniqueKeys = ['shift_code', 'product_number', 'registration_number', 'license_number', 'sku', 'name'];
+                    const uniqueKeys = ['shift_code', 'claim_code', 'product_number', 'registration_number', 'license_number', 'sku', 'name'];
                     const foundKey = uniqueKeys.find(k => targetColNames.includes(k) && sRow[k]);
                     if (foundKey) {
                         match = tRows.find(tRow => String(tRow[foundKey]).trim().toLowerCase() === String(sRow[foundKey]).trim().toLowerCase());
@@ -280,6 +280,38 @@ class DatabaseManager {
                 return_qty INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (shift_id) REFERENCES daily_shifts(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS claims (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim_code TEXT UNIQUE,
+                claim_date TEXT NOT NULL,
+                driver_id INTEGER,
+                driver_name TEXT NOT NULL,
+                truck_id INTEGER,
+                truck_name TEXT,
+                customer_shop TEXT,
+                total_items INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'Received',
+                notes TEXT,
+                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (driver_id) REFERENCES drivers(id),
+                FOREIGN KEY (truck_id) REFERENCES trucks(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS claim_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim_id INTEGER NOT NULL,
+                product_id INTEGER,
+                display_name TEXT NOT NULL,
+                manufacturer TEXT,
+                product_type TEXT,
+                quantity INTEGER NOT NULL DEFAULT 1,
+                claim_reason TEXT DEFAULT 'Manufacturing Defect',
+                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
             );
 
             CREATE TABLE IF NOT EXISTS __sync_meta (

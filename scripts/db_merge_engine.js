@@ -243,7 +243,7 @@ export function universalMergeDatabases(targetDb, sourceDb, options = {}) {
                         (targetCols.includes('category') ? String(tRow.category || '').trim().toLowerCase() === String(remappedRow.category || '').trim().toLowerCase() : true)
                     );
                 } else {
-                    const naturalKeys = ['shift_code', 'registration_number', 'license_number', 'sku', 'code', 'slug'];
+                    const naturalKeys = ['shift_code', 'claim_code', 'registration_number', 'license_number', 'sku', 'code', 'slug'];
                     const foundKey = naturalKeys.find(k => targetCols.includes(k) && remappedRow[k]);
                     if (foundKey) {
                         targetMatch = targetRows.find(tRow => 

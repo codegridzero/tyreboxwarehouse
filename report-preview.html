@@ -68,7 +68,7 @@
     <!-- Top Action Bar (Hidden on Print) -->
     <header id="top-action-bar" class="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-white px-4 lg:px-8 py-2.5 shadow-md flex items-center justify-between no-print">
         <div class="flex items-center space-x-3">
-            <a href="index.html#shifts" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition">
+            <a href="index.html" id="btn-back-link" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
@@ -76,7 +76,7 @@
             </a>
             <div class="hidden sm:block h-5 w-px bg-slate-700"></div>
             <div class="flex items-center space-x-2">
-                <span class="text-xs text-slate-400 font-medium">Shift:</span>
+                <span class="text-xs text-slate-400 font-medium" id="top-type-label">Report:</span>
                 <span id="top-shift-code" class="px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700 text-xs font-mono font-bold">Loading...</span>
             </div>
         </div>
@@ -106,20 +106,25 @@
         <!-- Loading State -->
         <div id="loading-state" class="text-center py-20">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-3 border-sky-600 border-t-transparent mb-3"></div>
-            <p class="text-sm font-bold text-slate-700">Loading Daily Shift Report...</p>
+            <p class="text-sm font-bold text-slate-700">Loading Official Report...</p>
             <p class="text-xs text-slate-400 mt-0.5">Connecting to database...</p>
         </div>
 
         <!-- Error State -->
         <div id="error-state" class="hidden bg-white p-6 rounded-lg border border-red-300 shadow-md max-w-md w-full text-center">
-            <h3 class="text-sm font-bold text-red-600 uppercase">Shift Report Not Found</h3>
-            <p id="error-message" class="text-xs text-slate-600 mt-2">The specified shift report could not be found or no ID was provided in the URL.</p>
-            <a href="index.html#shifts" class="mt-4 inline-block px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded transition">
-                Return to Daily Shifts
+            <h3 class="text-sm font-bold text-red-600 uppercase" id="error-title">Report Not Found</h3>
+            <p id="error-message" class="text-xs text-slate-600 mt-2">The specified report could not be found or no valid parameters were provided in the URL.</p>
+            <a href="index.html" id="error-back-link" class="mt-4 inline-block px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded transition">
+                Return to Warehouse App
             </a>
         </div>
 
-        <!-- Report Paper Document (Excel Spreadsheet Style) -->
+        <!-- Claims Report Paper Container (Excel Spreadsheet Style) -->
+        <div id="claims-report-paper" class="hidden bg-white border border-slate-300 shadow-sm max-w-4xl w-full p-3 md:p-5 space-y-3">
+            <!-- Dynamically populated by preview.js -->
+        </div>
+
+        <!-- Shift Report Paper Document (Excel Spreadsheet Style) -->
         <div id="report-paper" class="hidden bg-white border border-slate-300 shadow-sm max-w-4xl w-full p-3 md:p-5 space-y-1">
             
             <!-- Compact Excel Header Table -->

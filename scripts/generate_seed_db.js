@@ -4,15 +4,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getSqlInstance } from './db_merge_engine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const sqlWasmPath = path.join(__dirname, '../assets/lib/sql-wasm.js');
-const sqlWasmBinaryPath = path.join(__dirname, '../assets/lib/sql-wasm.wasm');
-
-const initSqlJs = (await import('file://' + sqlWasmPath)).default;
-const SQL = await initSqlJs({ wasmBinary: fs.readFileSync(sqlWasmBinaryPath) });
+const SQL = await getSqlInstance();
 
 console.log('Creating seed warehouse.sqlite database...');
 
@@ -86,6 +83,38 @@ db.run(`
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (shift_id) REFERENCES daily_shifts(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS claims (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        claim_code TEXT UNIQUE,
+        claim_date TEXT NOT NULL,
+        driver_id INTEGER,
+        driver_name TEXT NOT NULL,
+        truck_id INTEGER,
+        truck_name TEXT,
+        customer_shop TEXT,
+        total_items INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'Received',
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now', 'localtime')),
+        updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (driver_id) REFERENCES drivers(id),
+        FOREIGN KEY (truck_id) REFERENCES trucks(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS claim_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        claim_id INTEGER NOT NULL,
+        product_id INTEGER,
+        display_name TEXT NOT NULL,
+        manufacturer TEXT,
+        product_type TEXT,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        claim_reason TEXT DEFAULT 'Manufacturing Defect',
+        created_at TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id)
+    );
 `);
 
 // 2. Insert Seed Drivers & Trucks
@@ -127,9 +156,26 @@ db.run(`
     (1, 5, 'Havoline 20W-50 4T 0.7L (Honda 70 / 4T)', 15, NULL, 15);
 `);
 
+// 5. Insert Seed Claims (Warranty & Defective Returns)
+db.run(`
+    INSERT INTO claims (claim_code, claim_date, driver_id, driver_name, truck_id, truck_name, customer_shop, total_items, status, notes) VALUES
+    ('CLM-20260921-01', '2026-09-21', 1, 'Muhammad Ali', 1, 'Hino 500 Heavy (LES-24-1029)', 'Bismillah Autos, Chungi 4', 5, 'Received', 'Customer warranty replacements given on spot'),
+    ('CLM-20260922-01', '2026-09-22', 2, 'Tariq Mahmood', 2, 'Master Foton 3.5T (LHR-8842)', 'Madina Traders, GT Road', 4, 'Received', 'Manufacturing defects returned by retail dealer'),
+    ('CLM-20260923-01', '2026-09-23', 3, 'Rashid Khan', 3, 'Shahzore Blue (KHI-5512)', 'Al-Rehman Spare Parts', 3, 'Received', 'Monthly dealer warranty returns collected');
+
+    INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity, claim_reason) VALUES
+    (1, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2, 'Bead Cut / Defect'),
+    (1, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 1, 'Bulge / Bubble'),
+    (1, 3, 'MM Venture 2.50.17 Honda 70 Giga', 'Giga', 'Tube', 2, 'Joint Leakage'),
+    (2, 4, '428H-108L Gold Chain (Honda 70)', 'Diamond', 'Chain', 2, 'Link Snapped'),
+    (2, 1, 'ANT 2.25.17 2P Front Honda 70 Servis', 'Servis', 'Tire', 2, 'Manufacturing Defect'),
+    (3, 2, 'DTL 2.50.17 6P Rear Honda 70 Panther', 'Panther', 'Tire', 2, 'Sidewall Crack'),
+    (3, 5, 'Havoline 20W-50 4T 0.7L (Honda 70 / 4T)', 'Caltex', 'Oil', 1, 'Can Seal Leakage');
+`);
+
 // Export binary to warehouse.sqlite
 const binary = db.export();
 const outputPath = path.join(__dirname, '../warehouse.sqlite');
 fs.writeFileSync(outputPath, Buffer.from(binary));
 
-console.log(`✓ Successfully created ${outputPath} (${binary.length} bytes) with seed products, trucks, and shifts!`);
+console.log(`✓ Successfully created ${outputPath} (${binary.length} bytes) with seed products, trucks, shifts, and claims!`);

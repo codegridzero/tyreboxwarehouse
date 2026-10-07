@@ -90,6 +90,18 @@
                     <span id="sidebar-driver-count"
                         class="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full font-mono">0</span>
                 </a>
+
+                <!-- Warranty Claims & Returns Nav Link -->
+                <a href="#claims" id="nav-claims"
+                    class="sidebar-nav-item flex items-center px-3.5 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 border-l-0 transition">
+                    <svg class="w-5 h-5 mr-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>Warranty Claims</span>
+                    <span id="sidebar-claim-count"
+                        class="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full font-mono">0</span>
+                </a>
             </nav>
 
             <!-- Database Backup & Restore Bar -->
@@ -1005,6 +1017,270 @@
                 </div>
             </div>
 
+            <!-- ================= TAB 4: WARRANTY CLAIMS VIEW ================= -->
+            <div id="view-claims" class="flex-1 flex flex-col min-w-0 overflow-hidden hidden">
+                <!-- Top Header Bar -->
+                <header class="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Warranty Module</span>
+                            <span class="text-xs text-gray-400">•</span>
+                            <span class="text-xs text-gray-500 font-medium">Spot Replacement & Factory Returns</span>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900 mt-0.5">Warranty Claims & Defective Returns</h2>
+                        <p class="text-xs text-gray-500">Record daily customer warranty returns per driver and generate month-end company return reports</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2.5">
+                        <!-- Print Report Prompt Modal Trigger -->
+                        <button type="button" id="btn-open-print-claims-modal"
+                            class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-lg text-xs shadow-xs transition transform hover:-translate-y-0.5 cursor-pointer">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            Print Claims Report
+                        </button>
+
+                        <!-- Add Daily Claim Button -->
+                        <button type="button" id="btn-open-add-claim"
+                            class="inline-flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-bold rounded-lg text-xs shadow-xs transition transform hover:-translate-y-0.5 cursor-pointer">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            + Record Daily Claim
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Claims Main Content Area -->
+                <div class="flex-1 p-4 lg:p-6 overflow-y-auto space-y-5">
+                    
+                    <!-- KPI Metric Cards Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                        <!-- Total Claims Pcs -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+                            <div>
+                                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Grand Total Claims</span>
+                                <div class="flex items-baseline space-x-1 mt-0.5">
+                                    <span id="claim-stat-total-pcs" class="text-2xl font-black text-gray-900 font-mono">0</span>
+                                    <span class="text-xs font-bold text-gray-500">pcs</span>
+                                </div>
+                                <span id="claim-stat-total-records" class="text-[10px] text-gray-400 font-medium block mt-0.5">0 claim entries recorded</span>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                                🛡️
+                            </div>
+                        </div>
+
+                        <!-- Driver 1 Totals -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+                            <div>
+                                <span id="claim-driver1-label" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block truncate max-w-[120px]">Driver 1</span>
+                                <div class="flex items-baseline space-x-1 mt-0.5">
+                                    <span id="claim-stat-driver1-pcs" class="text-2xl font-black text-sky-600 font-mono">0</span>
+                                    <span class="text-xs font-bold text-gray-500">pcs</span>
+                                </div>
+                                <span class="text-[10px] text-gray-400 font-medium block mt-0.5">Spot claims returned</span>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+                                🚚
+                            </div>
+                        </div>
+
+                        <!-- Driver 2 Totals -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+                            <div>
+                                <span id="claim-driver2-label" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block truncate max-w-[120px]">Driver 2</span>
+                                <div class="flex items-baseline space-x-1 mt-0.5">
+                                    <span id="claim-stat-driver2-pcs" class="text-2xl font-black text-emerald-600 font-mono">0</span>
+                                    <span class="text-xs font-bold text-gray-500">pcs</span>
+                                </div>
+                                <span class="text-[10px] text-gray-400 font-medium block mt-0.5">Spot claims returned</span>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                                🚛
+                            </div>
+                        </div>
+
+                        <!-- Driver 3 Totals -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+                            <div>
+                                <span id="claim-driver3-label" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block truncate max-w-[120px]">Driver 3</span>
+                                <div class="flex items-baseline space-x-1 mt-0.5">
+                                    <span id="claim-stat-driver3-pcs" class="text-2xl font-black text-purple-600 font-mono">0</span>
+                                    <span class="text-xs font-bold text-gray-500">pcs</span>
+                                </div>
+                                <span class="text-[10px] text-gray-400 font-medium block mt-0.5">Spot claims returned</span>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                                🚐
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Bar & View Sub-Tabs -->
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                            <!-- Left Sub-Tabs Navigation -->
+                            <div class="flex items-center space-x-2">
+                                <button type="button" id="tab-btn-claim-log"
+                                    class="px-3.5 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-sky-600 text-white shadow-xs cursor-pointer">
+                                    <span>📋 Daily Claims Log</span>
+                                    <span id="badge-claims-table-count" class="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 text-white font-mono">0</span>
+                                </button>
+                                <button type="button" id="tab-btn-claim-summary"
+                                    class="px-3.5 py-2 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 cursor-pointer">
+                                    <span>📊 Company Monthly Summary (Excel Grid)</span>
+                                </button>
+                            </div>
+
+                            <!-- Quick Preset Period Pills -->
+                            <div class="flex items-center space-x-1.5 overflow-x-auto text-xs">
+                                <span class="text-gray-400 font-semibold text-[11px] mr-1">Period:</span>
+                                <button type="button" id="btn-claim-period-all" class="px-2.5 py-1 rounded bg-slate-800 text-white font-bold text-[11px] cursor-pointer">All Time</button>
+                                <button type="button" id="btn-claim-period-month" class="px-2.5 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-[11px] cursor-pointer">This Month</button>
+                                <button type="button" id="btn-claim-period-last" class="px-2.5 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-[11px] cursor-pointer">Last Month</button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Inputs Row -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-gray-100">
+                            <!-- Date From -->
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Date From</label>
+                                <input type="date" id="claim-filter-from"
+                                    class="w-full px-2.5 py-1.5 text-xs font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none">
+                            </div>
+
+                            <!-- Date To -->
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Date To</label>
+                                <input type="date" id="claim-filter-to"
+                                    class="w-full px-2.5 py-1.5 text-xs font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none">
+                            </div>
+
+                            <!-- Driver Selector -->
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Filter by Driver</label>
+                                <select id="claim-filter-driver"
+                                    class="w-full px-2.5 py-1.5 text-xs font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white cursor-pointer">
+                                    <option value="all">All Drivers (Combined)</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+
+                            <!-- Search Input -->
+                            <div class="relative">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Search Claims</label>
+                                <div class="relative">
+                                    <input type="text" id="claim-filter-search" placeholder="Search code, shop, brand..."
+                                        class="w-full pl-8 pr-7 py-1.5 text-xs font-medium border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none">
+                                    <svg class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <button type="button" id="btn-claim-filter-reset" title="Reset filters"
+                                        class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUB-VIEW 1: Daily Claims Log Table -->
+                    <div id="container-claims-log-table" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+                        <div class="p-3.5 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
+                            <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Daily Driver Claims History</span>
+                            <span class="text-[11px] text-gray-500 font-medium">Click "View Items" to see breakdown</span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-gray-600 border-collapse">
+                                <thead class="bg-slate-100 text-gray-800 uppercase font-bold text-[11px] border-b border-gray-200">
+                                    <tr>
+                                        <th class="py-3 px-3 w-12 text-center">#</th>
+                                        <th class="py-3 px-3">Date</th>
+                                        <th class="py-3 px-3 font-mono">Claim Ref</th>
+                                        <th class="py-3 px-3">Driver & Vehicle</th>
+                                        <th class="py-3 px-3">Customer / Shop</th>
+                                        <th class="py-3 px-3 text-center">Claim Items</th>
+                                        <th class="py-3 px-3 text-center">Status</th>
+                                        <th class="py-3 px-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="claims-table-tbody" class="divide-y divide-gray-100 bg-white font-medium">
+                                    <!-- Injected dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="claims-empty-state" class="p-12 text-center hidden">
+                            <div class="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                🛡️
+                            </div>
+                            <h3 class="text-base font-bold text-gray-800">No Warranty Claims Found</h3>
+                            <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">No warranty defect returns have been recorded for the selected period or filter.</p>
+                            <button type="button" id="btn-empty-add-claim"
+                                class="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs shadow-xs transition cursor-pointer">
+                                + Record Daily Claim
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SUB-VIEW 2: Consolidated Company Return Breakdown (Live Excel Preview) -->
+                    <div id="container-claims-summary-table" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden hidden space-y-3 p-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-gray-200">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-900 uppercase">Company Warranty Return Breakdown (Excel Grid)</h3>
+                                <p class="text-xs text-gray-500">Grouped by Manufacturer / Brand and Product for factory submission</p>
+                            </div>
+                            <button type="button" id="btn-print-summary-excel"
+                                class="inline-flex items-center px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-xs transition cursor-pointer">
+                                <svg class="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                Print Official Company Return Sheet
+                            </button>
+                        </div>
+
+                        <!-- Excel Grid Preview Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse border border-black bg-white">
+                                <thead>
+                                    <tr class="bg-slate-200 text-black font-bold uppercase text-[11px] border-b border-black">
+                                        <th class="p-2 border border-black text-center w-12">#</th>
+                                        <th class="p-2 border border-black w-28">Brand / Company</th>
+                                        <th class="p-2 border border-black w-24">Type</th>
+                                        <th class="p-2 border border-black">Product Specification / Name</th>
+                                        <th class="p-2 border border-black">Primary Defect / Reasons</th>
+                                        <th class="p-2 border border-black text-right w-28">Claim Pcs</th>
+                                        <th class="p-2 border border-black text-right w-20">% Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="claims-summary-table-tbody" class="divide-y divide-black bg-white font-medium text-xs">
+                                    <!-- Injected dynamically -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-slate-100 font-bold border-t-2 border-b-2 border-black text-black">
+                                        <td colspan="5" class="p-2 border border-black text-right uppercase">
+                                            Grand Total Factory Claim Return:
+                                        </td>
+                                        <td class="p-2 border border-black text-right font-mono font-bold text-sm">
+                                            <span id="claims-summary-foot-pcs">0</span> pcs
+                                        </td>
+                                        <td class="p-2 border border-black text-right font-mono font-bold text-xs">
+                                            100%
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -1665,6 +1941,360 @@
 
             </div>
 
+        </div>
+    </div>
+
+    <!-- ================= MODAL 1: ADD / EDIT DAILY CLAIM ================= -->
+    <div id="claim-modal"
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 transition-opacity duration-200 hidden opacity-0">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-200 scale-95"
+            id="claim-modal-card">
+
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-slate-50">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-lg">
+                        🛡️
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900" id="claim-modal-title">Record Daily Warranty Claim</h3>
+                        <p class="text-[11px] text-gray-500">Record defective products brought back by driver for customer warranty replacements</p>
+                    </div>
+                </div>
+                <button type="button" id="btn-close-claim-modal"
+                    class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg cursor-pointer">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Form Body -->
+            <form id="claim-form" class="p-6 overflow-y-auto flex-1 space-y-4">
+                <input type="hidden" id="form-claim-id" value="">
+
+                <!-- Top Metadata: Date, Driver, Truck -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-slate-50 p-3.5 rounded-xl border border-gray-200">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">
+                            Claim Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="form-claim-date" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">
+                            Driver / Salesman <span class="text-red-500">*</span>
+                        </label>
+                        <select id="form-claim-driver" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white cursor-pointer">
+                            <option value="">-- Select Driver --</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">
+                            Vehicle / Truck
+                        </label>
+                        <select id="form-claim-truck"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white cursor-pointer">
+                            <option value="">-- Select Truck (Optional) --</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Customer Shop & Route Remarks -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">
+                            Customer / Dealer Shop Name <span class="text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <input type="text" id="form-claim-shop" placeholder="e.g. Bismillah Autos, Chungi # 4"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">
+                            Remarks / Route Notes <span class="text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <input type="text" id="form-claim-notes" placeholder="e.g. Spot claim given on delivery route"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- Claim Items Section -->
+                <div class="space-y-2.5 pt-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>Defective Product Items</span>
+                            <span id="form-claim-items-count-badge" class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-mono font-bold">1 item</span>
+                        </label>
+                        <button type="button" id="btn-add-claim-row"
+                            class="inline-flex items-center px-3 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-lg border border-sky-200 transition cursor-pointer">
+                            <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            + Add Product Row
+                        </button>
+                    </div>
+
+                    <!-- Items Container -->
+                    <div id="form-claim-items-container" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        <!-- Dynamic Claim Item Row Injected Here -->
+                    </div>
+                </div>
+
+                <!-- Footer Summary Bar -->
+                <div class="bg-amber-50/80 p-3 rounded-xl border border-amber-200 flex items-center justify-between text-xs">
+                    <span class="font-bold text-amber-900">Total Claim Quantity to Record:</span>
+                    <span class="text-base font-black text-amber-900 font-mono"><span id="form-claim-total-pieces">0</span> pcs</span>
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-gray-100">
+                    <button type="button" id="btn-cancel-claim-modal"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" id="btn-save-claim"
+                        class="px-5 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer">
+                        Save Claim Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: PRINT REPORT SELECTION MODAL ================= -->
+    <div id="claim-print-modal"
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 transition-opacity duration-200 hidden opacity-0">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-200 scale-95"
+            id="claim-print-modal-card">
+
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-slate-900 text-white">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center justify-center font-bold text-lg">
+                        🖨️
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Print Warranty Claims Report</h3>
+                        <p class="text-[11px] text-slate-300">Choose the report format to generate and print</p>
+                    </div>
+                </div>
+                <button type="button" id="btn-close-claim-print-modal"
+                    class="text-slate-400 hover:text-white p-1.5 rounded-lg cursor-pointer">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Print Option Selector Form Body -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-5">
+                
+                <!-- Report Format Choices -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5">Select Report Type to Print:</label>
+                    <div class="space-y-2.5">
+                        
+                        <!-- Option 1: Combined Only -->
+                        <label class="print-mode-card flex items-start p-3.5 border-2 border-sky-500 bg-sky-50/40 rounded-xl cursor-pointer hover:bg-sky-50 transition">
+                            <input type="radio" name="claim_report_mode" value="combined" checked class="mt-0.5 text-sky-600 focus:ring-sky-500 cursor-pointer">
+                            <div class="ml-3 flex-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-gray-900">1. Combined Company Return Sheet Only (Recommended)</span>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Paper Saver • 1 Page</span>
+                                </div>
+                                <p class="text-[11px] text-gray-600 mt-1">
+                                    Consolidated return list summarizing grand total defect pieces grouped by Manufacturer (Servis, Panther, Giga, etc.) & Product for sending straight to the factory.
+                                </p>
+                            </div>
+                        </label>
+
+                        <!-- Option 2: Specific Driver -->
+                        <label class="print-mode-card flex items-start p-3.5 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="claim_report_mode" value="driver" class="mt-0.5 text-sky-600 focus:ring-sky-500 cursor-pointer">
+                            <div class="ml-3 flex-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-gray-900">2. Specific Driver Return Chit</span>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-700">Driver Record</span>
+                                </div>
+                                <p class="text-[11px] text-gray-600 mt-1">
+                                    Individual driver's claims return record showing their personal daily defect chits and signature verification.
+                                </p>
+                            </div>
+                        </label>
+
+                        <!-- Option 3: Full Complete Report -->
+                        <label class="print-mode-card flex items-start p-3.5 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="claim_report_mode" value="full" class="mt-0.5 text-sky-600 focus:ring-sky-500 cursor-pointer">
+                            <div class="ml-3 flex-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-gray-900">3. Full Complete Report (Combined + All Drivers)</span>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800">Master Audit</span>
+                                </div>
+                                <p class="text-[11px] text-gray-600 mt-1">
+                                    Combined factory summary table on top, followed by separate detailed breakdown tables for every driver.
+                                </p>
+                            </div>
+                        </label>
+
+                    </div>
+                </div>
+
+                <!-- Specific Driver Dropdown (Revealed when Option 2 chosen) -->
+                <div id="print-driver-select-container" class="hidden bg-slate-50 p-3.5 rounded-xl border border-gray-200">
+                    <label class="block text-xs font-bold text-gray-800 mb-1">
+                        Select Driver to Print: <span class="text-red-500">*</span>
+                    </label>
+                    <select id="print-claim-driver-select"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white cursor-pointer">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Date Range Selection -->
+                <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-gray-800 uppercase tracking-wider">Report Date Range:</label>
+                        <div class="flex items-center space-x-1">
+                            <button type="button" id="print-range-month" class="px-2 py-0.5 rounded bg-sky-600 text-white font-bold text-[10px] cursor-pointer">This Month</button>
+                            <button type="button" id="print-range-last" class="px-2 py-0.5 rounded bg-white text-gray-700 border border-gray-300 font-bold text-[10px] cursor-pointer">Last Month</button>
+                            <button type="button" id="print-range-all" class="px-2 py-0.5 rounded bg-white text-gray-700 border border-gray-300 font-bold text-[10px] cursor-pointer">All Time</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">From Date:</span>
+                            <input type="date" id="print-claim-from-date"
+                                class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white outline-none">
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">To Date:</span>
+                            <input type="date" id="print-claim-to-date"
+                                class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white outline-none">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Action Footer -->
+            <div class="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-gray-100">
+                <button type="button" id="btn-cancel-claim-print-modal"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" id="btn-generate-claim-print"
+                    class="inline-flex items-center px-5 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-lg text-xs font-bold shadow-sm transition transform hover:-translate-y-0.5 cursor-pointer">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span>Generate & Print Report</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 3: VIEW INDIVIDUAL CLAIM DETAILS ================= -->
+    <div id="claim-view-modal"
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 transition-opacity duration-200 hidden opacity-0">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-200 scale-95"
+            id="claim-view-modal-card">
+
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-slate-900 text-white">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center justify-center font-bold">
+                        📋
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-sm font-bold font-mono text-white" id="view-claim-code">CLM-20260921-01</h3>
+                            <span class="px-2 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">Claim Chit</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300">Daily Driver Warranty Claim Details</p>
+                    </div>
+                </div>
+                <button type="button" id="btn-close-claim-view-modal"
+                    class="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Details Content -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <!-- Metadata Box -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-gray-200 text-xs">
+                    <div>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase block">Date:</span>
+                        <strong id="view-claim-date" class="text-gray-900 font-mono">2026-09-21</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase block">Driver:</span>
+                        <strong id="view-claim-driver" class="text-gray-900">Muhammad Ali</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase block">Truck:</span>
+                        <strong id="view-claim-truck" class="text-gray-900">Hino 500</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase block">Customer / Shop:</span>
+                        <strong id="view-claim-shop" class="text-gray-900">Bismillah Autos</strong>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                    <table class="w-full text-left text-xs text-gray-700">
+                        <thead class="bg-gray-100 text-gray-800 uppercase font-bold text-[10px] border-b border-gray-200">
+                            <tr>
+                                <th class="p-2.5 text-center w-10">#</th>
+                                <th class="p-2.5">Product Description</th>
+                                <th class="p-2.5">Manufacturer</th>
+                                <th class="p-2.5">Defect Reason</th>
+                                <th class="p-2.5 text-right w-20">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="view-claim-items-tbody" class="divide-y divide-gray-100 font-medium">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-amber-50/80 font-bold border-t border-amber-200 text-amber-950">
+                                <td colspan="4" class="p-2.5 text-right uppercase text-xs">Total Defect Items:</td>
+                                <td class="p-2.5 text-right font-mono font-bold text-xs"><span id="view-claim-total-pcs">0</span> pcs</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div id="view-claim-notes-box" class="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+                    <span class="font-bold text-gray-700">Remarks: </span>
+                    <span id="view-claim-notes-text">—</span>
+                </div>
+            </div>
+
+            <!-- Footer Action -->
+            <div class="flex items-center justify-end px-6 py-3.5 bg-slate-50 border-t border-gray-100 space-x-2">
+                <button type="button" id="btn-close-claim-view-modal-bottom"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer">
+                    Close
+                </button>
+            </div>
         </div>
     </div>
 
