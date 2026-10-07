@@ -211,6 +211,57 @@ class DatabaseManager {
         if (!this.db) return;
         // Ensure standard tables exist if completely brand new
         this.ensureDefaultSchemas();
+
+        try {
+            // Check and migrate claim_items table to remove legacy claim_reason column if present
+            const itemCols = this.query('PRAGMA table_info("claim_items")');
+            if (itemCols && itemCols.length > 0) {
+                const hasReason = itemCols.some(c => c.name.toLowerCase() === 'claim_reason');
+                if (hasReason) {
+                    this.db.run(`
+                        CREATE TABLE claim_items_clean (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            claim_id INTEGER NOT NULL,
+                            product_id INTEGER,
+                            display_name TEXT NOT NULL,
+                            manufacturer TEXT,
+                            product_type TEXT,
+                            quantity INTEGER NOT NULL DEFAULT 1,
+                            created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                            FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
+                            FOREIGN KEY (product_id) REFERENCES products(id)
+                        );
+                        INSERT INTO claim_items_clean (id, claim_id, product_id, display_name, manufacturer, product_type, quantity, created_at)
+                        SELECT id, claim_id, product_id, display_name, manufacturer, product_type, quantity, created_at FROM claim_items;
+                        DROP TABLE claim_items;
+                        ALTER TABLE claim_items_clean RENAME TO claim_items;
+                    `);
+                    console.log('✓ Successfully migrated claim_items table to clean schema without claim_reason.');
+                }
+            }
+
+            // Ensure missing columns in claims table if from an older schema cache
+            const claimsCols = this.query('PRAGMA table_info("claims")');
+            if (claimsCols && claimsCols.length > 0) {
+                const addIfMissing = (colName, colTypeDef) => {
+                    if (!claimsCols.some(c => c.name.toLowerCase() === colName.toLowerCase())) {
+                        try {
+                            this.db.run(`ALTER TABLE "claims" ADD COLUMN "${colName}" ${colTypeDef}`);
+                        } catch (e) {}
+                    }
+                };
+                addIfMissing('claim_code', 'TEXT');
+                addIfMissing('truck_name', 'TEXT');
+                addIfMissing('driver_name', 'TEXT');
+                addIfMissing('customer_shop', 'TEXT');
+                addIfMissing('total_items', 'INTEGER DEFAULT 0');
+                addIfMissing('status', 'TEXT DEFAULT "Received"');
+                addIfMissing('notes', 'TEXT');
+                addIfMissing('updated_at', 'TEXT DEFAULT (datetime(\'now\', \'localtime\'))');
+            }
+        } catch (migErr) {
+            console.warn('[DB Migration] Dynamic schema migration info:', migErr);
+        }
     }
 
     ensureDefaultSchemas() {

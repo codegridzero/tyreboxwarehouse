@@ -4116,10 +4116,17 @@ class WarehouseApp {
 
                 this.showToast(`Claim "${claimCode}" updated successfully (${totalPcs} pcs)!`, 'success');
             } else {
-                const dateClean = date.replace(/-/g, '');
-                const existingCountQuery = dbManager.query('SELECT COUNT(*) as cnt FROM claims WHERE claim_date = ?', [date]);
-                const nextSeq = String((existingCountQuery[0]?.cnt || 0) + 1).padStart(2, '0');
-                claimCode = `CLM-${dateClean}-${nextSeq}`;
+                const dateClean = (date || this.getTodayDateStr()).replace(/-/g, '');
+                let seq = 1;
+                let candidateCode = `CLM-${dateClean}-${String(seq).padStart(2, '0')}`;
+                while (
+                    (this.claims && this.claims.some(c => c.claim_code === candidateCode)) ||
+                    dbManager.query('SELECT id FROM claims WHERE claim_code = ?', [candidateCode]).length > 0
+                ) {
+                    seq++;
+                    candidateCode = `CLM-${dateClean}-${String(seq).padStart(2, '0')}`;
+                }
+                claimCode = candidateCode;
 
                 const insertResult = dbManager.run(`
                     INSERT INTO claims (claim_code, claim_date, driver_id, driver_name, truck_id, truck_name, customer_shop, total_items, status, notes)
@@ -4132,7 +4139,7 @@ class WarehouseApp {
                     dbManager.run(`
                         INSERT INTO claim_items (claim_id, product_id, display_name, manufacturer, product_type, quantity)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    `, [claimId, item.product_id, item.display_name, item.manufacturer, item.product_type, item.quantity]);
+                    `, [claimId, item.product_id || null, item.display_name, item.manufacturer || '', item.product_type || '', item.quantity || 1]);
                 });
 
                 this.showToast(`Claim record ${claimCode} saved successfully (${totalPcs} pcs)!`, 'success');
