@@ -1,48 +1,7 @@
-const CACHE_NAME = 'tire-warehouse-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './css/app.css',
-  './manifest.json',
-  './assets/lib/sql-wasm.js',
-  './assets/lib/sql-wasm.wasm',
-  './assets/icons/icon.svg',
-  './js/app.js',
-  './js/db.js',
-  './js/router.js',
-  './js/utils.js',
-  './js/components/navbar.js',
-  './js/components/sidebar.js',
-  './js/components/modal.js',
-  './js/components/toast.js',
-  './js/services/inventoryService.js',
-  './js/services/productService.js',
-  './js/services/truckService.js',
-  './js/services/dispatchService.js',
-  './js/services/salesService.js',
-  './js/services/returnService.js',
-  './js/services/closingService.js',
-  './js/services/reportService.js',
-  './js/services/backupService.js',
-  './js/services/seedData.js',
-  './js/pages/dashboard.js',
-  './js/pages/dailyControl.js',
-  './js/pages/loading.js',
-  './js/pages/sales.js',
-  './js/pages/returns.js',
-  './js/pages/inventory.js',
-  './js/pages/products.js',
-  './js/pages/trucks.js',
-  './js/pages/reports.js',
-  './js/pages/settings.js'
-];
+// Service Worker with Network-First Strategy and Instant Cache Invalidation
+const CACHE_NAME = 'tire-warehouse-v20261007';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
-  );
   self.skipWaiting();
 });
 
@@ -50,20 +9,21 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((k) => {
-          if (k !== CACHE_NAME) return caches.delete(k);
-        })
+        keys.map((k) => caches.delete(k))
       );
     })
   );
   self.clients.claim();
 });
 
+// Network-First strategy: always fetch fresh from server, fallback to cache only if offline
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      return cached || fetch(e.request).catch(() => cached);
-    })
+    fetch(e.request)
+      .then((networkResponse) => {
+        return networkResponse;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

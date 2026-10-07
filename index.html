@@ -2376,8 +2376,28 @@
         class="fixed bottom-5 right-5 z-50 flex flex-col-reverse space-y-reverse space-y-2.5 pointer-events-none"></div>
 
 
-    <!-- Main JS Application Script -->
-    <script type="module" src="js/app.js?v=5.0"></script>
+    <!-- Auto Cache Cleanup & Cache Buster -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (let registration of registrations) {
+                    registration.update();
+                }
+            });
+        }
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) {
+                    if (name === 'tire-warehouse-v1') {
+                        caches.delete(name);
+                    }
+                }
+            });
+        }
+    </script>
+
+    <!-- Main JS Application Script with Dynamic Version Tag -->
+    <script type="module" src="js/app.js?v=20261007_02"></script>
 </body>
 
 </html>

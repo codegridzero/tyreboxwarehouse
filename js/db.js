@@ -265,8 +265,9 @@ class DatabaseManager {
     }
 
     ensureDefaultSchemas() {
-        this.db.run(`
-            CREATE TABLE IF NOT EXISTS products (
+        if (!this.db) return;
+        const schemaStatements = [
+            `CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_type TEXT NOT NULL,
                 product_number TEXT NOT NULL,
@@ -279,9 +280,8 @@ class DatabaseManager {
                 notes TEXT,
                 images TEXT,
                 created_at TEXT DEFAULT (datetime('now', 'localtime'))
-            );
-
-            CREATE TABLE IF NOT EXISTS drivers (
+            )`,
+            `CREATE TABLE IF NOT EXISTS drivers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 phone TEXT,
@@ -290,9 +290,8 @@ class DatabaseManager {
                 notes TEXT,
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
-            );
-
-            CREATE TABLE IF NOT EXISTS trucks (
+            )`,
+            `CREATE TABLE IF NOT EXISTS trucks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 registration_number TEXT,
@@ -302,9 +301,8 @@ class DatabaseManager {
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (driver_id) REFERENCES drivers(id)
-            );
-
-            CREATE TABLE IF NOT EXISTS daily_shifts (
+            )`,
+            `CREATE TABLE IF NOT EXISTS daily_shifts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 shift_code TEXT,
                 shift_date TEXT NOT NULL,
@@ -319,9 +317,8 @@ class DatabaseManager {
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (truck_id) REFERENCES trucks(id)
-            );
-
-            CREATE TABLE IF NOT EXISTS shift_items (
+            )`,
+            `CREATE TABLE IF NOT EXISTS shift_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 shift_id INTEGER NOT NULL,
                 product_id INTEGER,
@@ -331,9 +328,8 @@ class DatabaseManager {
                 return_qty INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (shift_id) REFERENCES daily_shifts(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS claims (
+            )`,
+            `CREATE TABLE IF NOT EXISTS claims (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 claim_code TEXT UNIQUE,
                 claim_date TEXT NOT NULL,
@@ -349,9 +345,8 @@ class DatabaseManager {
                 updated_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (driver_id) REFERENCES drivers(id),
                 FOREIGN KEY (truck_id) REFERENCES trucks(id)
-            );
-
-            CREATE TABLE IF NOT EXISTS claim_items (
+            )`,
+            `CREATE TABLE IF NOT EXISTS claim_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 claim_id INTEGER NOT NULL,
                 product_id INTEGER,
@@ -362,17 +357,24 @@ class DatabaseManager {
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE,
                 FOREIGN KEY (product_id) REFERENCES products(id)
-            );
-
-            CREATE TABLE IF NOT EXISTS __sync_meta (
+            )`,
+            `CREATE TABLE IF NOT EXISTS __sync_meta (
                 id INTEGER PRIMARY KEY,
                 db_uuid TEXT NOT NULL,
                 revision INTEGER NOT NULL DEFAULT 1,
                 content_hash TEXT,
                 last_synced_at TEXT DEFAULT (datetime('now', 'localtime')),
                 sync_notes TEXT
-            );
-        `);
+            )`
+        ];
+
+        schemaStatements.forEach(stmt => {
+            try {
+                this.db.run(stmt);
+            } catch (e) {
+                console.warn('[DB Schema Init] Statement notice:', e.message);
+            }
+        });
     }
 
     queryOne(sql, params = []) {
@@ -382,21 +384,48 @@ class DatabaseManager {
 
     query(sql, params = []) {
         if (!this.db) throw new Error('Database not initialized');
-        const stmt = this.db.prepare(sql);
-        stmt.bind(params);
-        const results = [];
-        while (stmt.step()) results.push(stmt.getAsObject());
-        stmt.free();
-        return results;
+        try {
+            const stmt = this.db.prepare(sql);
+            stmt.bind(params);
+            const results = [];
+            while (stmt.step()) results.push(stmt.getAsObject());
+            stmt.free();
+            return results;
+        } catch (err) {
+            if (err && err.message && err.message.toLowerCase().includes('no such table')) {
+                console.warn('[DB Auto-Recovery] Missing table detected, ensuring schemas:', err.message);
+                this.ensureDefaultSchemas();
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const results = [];
+                while (stmt.step()) results.push(stmt.getAsObject());
+                stmt.free();
+                return results;
+            }
+            throw err;
+        }
     }
 
     run(sql, params = []) {
         if (!this.db) throw new Error('Database not initialized');
-        this.db.run(sql, params);
-        const lastIdResult = this.query('SELECT last_insert_rowid() AS id');
-        const lastInsertRowId = lastIdResult[0] ? lastIdResult[0].id : 0;
-        this.scheduleSave();
-        return { lastInsertRowId };
+        try {
+            this.db.run(sql, params);
+            const lastIdResult = this.query('SELECT last_insert_rowid() AS id');
+            const lastInsertRowId = lastIdResult[0] ? lastIdResult[0].id : 0;
+            this.scheduleSave();
+            return { lastInsertRowId };
+        } catch (err) {
+            if (err && err.message && err.message.toLowerCase().includes('no such table')) {
+                console.warn('[DB Auto-Recovery] Missing table detected in run(), ensuring schemas:', err.message);
+                this.ensureDefaultSchemas();
+                this.db.run(sql, params);
+                const lastIdResult = this.query('SELECT last_insert_rowid() AS id');
+                const lastInsertRowId = lastIdResult[0] ? lastIdResult[0].id : 0;
+                this.scheduleSave();
+                return { lastInsertRowId };
+            }
+            throw err;
+        }
     }
 
     exportDatabase() {
