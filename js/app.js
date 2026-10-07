@@ -3318,6 +3318,7 @@ class WarehouseApp {
 
     async loadClaims() {
         try {
+            dbManager.ensureDefaultSchemas();
             this.claims = dbManager.query(`
                 SELECT 
                     c.*,
@@ -3339,6 +3340,7 @@ class WarehouseApp {
             this.applyCompanySummaryFilters();
         } catch (err) {
             console.error('Error loading claims:', err);
+            this.claims = [];
         }
     }
 
@@ -3560,7 +3562,12 @@ class WarehouseApp {
             this.claimsSummaryFilterBadge.textContent = `${driverLabel} • ${periodLabel}`;
         }
 
-        const allItems = dbManager.query('SELECT * FROM claim_items');
+        let allItems = [];
+        try {
+            allItems = dbManager.query('SELECT * FROM claim_items');
+        } catch (e) {
+            allItems = [];
+        }
         this.renderClaimsSummaryTable(filteredClaims, allItems);
     }
 
@@ -4149,6 +4156,7 @@ class WarehouseApp {
         });
 
         try {
+            dbManager.ensureDefaultSchemas();
             const editId = this.formClaimId ? this.formClaimId.value : '';
             let claimCode = '';
 
