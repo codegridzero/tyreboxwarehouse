@@ -1,0 +1,26 @@
+{
+  "name": "warehouse-management",
+  "version": "1.0.0",
+  "description": "Tire & Tube Warehouse Management System",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node scripts/build_system.js",
+    "merge:db": "node scripts/server_auto_merge.js",
+    "seed": "node scripts/generate_seed_db.js",
+    "test": "node tests/test_warehouse_flow.js",
+    "test:merge": "node tests/test_auto_merge.js",
+    "test:all": "node tests/test_warehouse_flow.js && node tests/test_spare_parts_products.js && node tests/test_daily_shifts.js && node tests/test_trucks_drivers_subtabs.js && node tests/test_auto_merge.js"
+  },
+  "keywords": [
+    "warehouse",
+    "inventory",
+    "sqlite",
+    "wasm",
+    "auto-merge",
+    "sync"
+  ],
+  "author": "",
+  "license": "ISC"
+}

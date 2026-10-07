@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#4338ca" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Tire outer circle -->
+    <circle cx="256" cy="256" r="160" />
+    <!-- Tire inner rim -->
+    <circle cx="256" cy="256" r="80" stroke-width="20" fill="#0f172a" />
+    <!-- Tread ribs -->
+    <path d="M256 96 L256 126" stroke-width="24" />
+    <path d="M256 386 L256 416" stroke-width="24" />
+    <path d="M96 256 L126 256" stroke-width="24" />
+    <path d="M386 256 L416 256" stroke-width="24" />
+    <path d="M142 142 L164 164" stroke-width="24" />
+    <path d="M348 348 L370 370" stroke-width="24" />
+    <path d="M348 164 L370 142" stroke-width="24" />
+    <path d="M142 370 L164 348" stroke-width="24" />
+  </g>
+</svg>

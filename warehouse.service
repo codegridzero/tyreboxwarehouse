@@ -1,0 +1,14 @@
+[Unit]
+Description=Tire & Tube Warehouse Management System
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/veyren/Desktop/warehouse
+ExecStart=/usr/bin/node /home/veyren/Desktop/warehouse/server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target

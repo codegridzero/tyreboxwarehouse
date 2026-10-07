@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Shift Report Preview - Warehouse System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SQLite WASM (sql.js) -->
+    <script src="assets/lib/sql-wasm.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            background-color: #f1f5f9;
+            color: #000000;
+        }
+        .excel-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid #000000;
+            padding: 3px 5px;
+            font-size: 11px;
+            line-height: 1.25;
+        }
+
+        /* Print Media Styles for Pure Single-Page Excel Sheet Printout */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print, header, #top-action-bar, #toast-container {
+                display: none !important;
+            }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+            }
+            #report-paper {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+            .excel-table th, .excel-table td {
+                border: 1px solid #000000 !important;
+                padding: 2px 4px !important;
+                font-size: 10px !important;
+                line-height: 1.2 !important;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 6mm 6mm 6mm 6mm;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+    <!-- Top Action Bar (Hidden on Print) -->
+    <header id="top-action-bar" class="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-white px-4 lg:px-8 py-2.5 shadow-md flex items-center justify-between no-print">
+        <div class="flex items-center space-x-3">
+            <a href="index.html#shifts" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span>Back to Warehouse App</span>
+            </a>
+            <div class="hidden sm:block h-5 w-px bg-slate-700"></div>
+            <div class="flex items-center space-x-2">
+                <span class="text-xs text-slate-400 font-medium">Shift:</span>
+                <span id="top-shift-code" class="px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700 text-xs font-mono font-bold">Loading...</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2.5">
+            <!-- Copy Shareable Link Button -->
+            <button type="button" id="btn-copy-link" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded text-xs font-semibold border border-slate-700 transition cursor-pointer">
+                <svg class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span id="copy-btn-text">Copy Link</span>
+            </button>
+
+            <!-- Print Official Excel Sheet Button -->
+            <button type="button" id="btn-print-report" class="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold transition cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                <span>Print Sheet</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 p-2 md:p-6 flex justify-center items-start">
+        
+        <!-- Loading State -->
+        <div id="loading-state" class="text-center py-20">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-3 border-sky-600 border-t-transparent mb-3"></div>
+            <p class="text-sm font-bold text-slate-700">Loading Daily Shift Report...</p>
+            <p class="text-xs text-slate-400 mt-0.5">Connecting to database...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="hidden bg-white p-6 rounded-lg border border-red-300 shadow-md max-w-md w-full text-center">
+            <h3 class="text-sm font-bold text-red-600 uppercase">Shift Report Not Found</h3>
+            <p id="error-message" class="text-xs text-slate-600 mt-2">The specified shift report could not be found or no ID was provided in the URL.</p>
+            <a href="index.html#shifts" class="mt-4 inline-block px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded transition">
+                Return to Daily Shifts
+            </a>
+        </div>
+
+        <!-- Report Paper Document (Excel Spreadsheet Style) -->
+        <div id="report-paper" class="hidden bg-white border border-slate-300 shadow-sm max-w-4xl w-full p-3 md:p-5 space-y-1">
+            
+            <!-- Compact Excel Header Table -->
+            <table class="excel-table text-left mb-1">
+                <thead>
+                    <tr>
+                        <th colspan="4" class="py-1 px-2 text-center text-xs font-black uppercase bg-slate-100 tracking-wider">
+                            WAREHOUSE DAILY VEHICLE DISPATCH & SPOT SALES SHEET
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="text-[11px]">
+                        <td class="p-1 px-2 w-1/4"><strong>Date:</strong> <span id="meta-shift-date" class="font-mono">2026-09-21</span></td>
+                        <td class="p-1 px-2 w-1/4"><strong>Truck:</strong> <span id="meta-truck-name" class="font-bold">Hino 5T (LES-24-1029)</span></td>
+                        <td class="p-1 px-2 w-1/4"><strong>Driver:</strong> <span id="meta-driver-name" class="font-bold">Muhammad Ali</span></td>
+                        <td class="p-1 px-2 w-1/4"><strong>Shift:</strong> <span id="shift-code-badge" class="font-mono font-bold">SH-01</span> (<span id="shift-status-badge" class="font-semibold">Open</span>)</td>
+                    </tr>
+                    <tr class="text-[10px] bg-slate-50/50">
+                        <td colspan="3" class="p-1 px-2">
+                            <strong>Remarks:</strong> <span id="meta-notes">—</span>
+                        </td>
+                        <td class="p-1 px-2 text-right">
+                            <span id="shift-timestamp" class="text-[9px] text-gray-500">Printed: 2026-09-21</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Hidden Element Holders for JS / Metric Compatibility -->
+            <div class="hidden">
+                <span id="metric-items-count">0</span>
+                <span id="metric-dispatch-qty">0</span>
+                <span id="metric-sales-qty">0</span>
+                <span id="metric-returns-qty">0</span>
+                <span id="table-items-badge">Items</span>
+            </div>
+
+            <!-- Itemized Compact Excel Product Table -->
+            <div class="w-full overflow-x-auto">
+                <table class="excel-table text-left text-xs">
+                    <thead>
+                        <tr class="bg-slate-200 text-black font-bold uppercase text-[10px]">
+                            <th class="py-1 px-1 text-center w-8">#</th>
+                            <th class="py-1 px-2">Product Name</th>
+                            <th class="py-1 px-2 text-right w-24">Morning Dispatch</th>
+                            <th class="py-1 px-2 text-right w-24">Spot Sold</th>
+                            <th class="py-1 px-2 text-right w-24">Returned Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-table-body" class="bg-white text-black font-medium text-[11px]">
+                        <!-- Injected by preview.js -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-slate-100 font-bold border-t-2 border-b-2 border-black text-black text-[11px]">
+                            <td colspan="2" class="py-1 px-2 text-right uppercase">
+                                Grand Total Reconciliation:
+                            </td>
+                            <td class="py-1 px-2 text-right font-mono font-bold">
+                                <span id="foot-dispatch-total">0</span> pcs
+                            </td>
+                            <td class="py-1 px-2 text-right font-mono font-bold">
+                                <span id="foot-sales-total">0</span> pcs
+                            </td>
+                            <td class="py-1 px-2 text-right font-mono font-bold">
+                                <span id="foot-returns-total">0</span> pcs
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Compact 1-Line Excel Signatures -->
+            <table class="excel-table text-[10px] mt-1.5">
+                <tr>
+                    <td class="py-2 px-2 text-center w-1/3">
+                        <span class="text-gray-500 block text-[9px] mb-3">Warehouse Incharge Signature</span>
+                        <div class="border-t border-black pt-0.5 font-bold uppercase text-[9px]">Warehouse Dispatcher</div>
+                    </td>
+                    <td class="py-2 px-2 text-center w-1/3">
+                        <span class="text-gray-500 block text-[9px] mb-3">Driver / Salesman Sign-off</span>
+                        <div class="border-t border-black pt-0.5 font-bold uppercase text-[9px]" id="sign-driver-name">Driver / Salesman</div>
+                    </td>
+                    <td class="py-2 px-2 text-center w-1/3">
+                        <span class="text-gray-500 block text-[9px] mb-3">Stock Return Verification</span>
+                        <div class="border-t border-black pt-0.5 font-bold uppercase text-[9px]">Stock Receiver</div>
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+
+    </main>
+
+    <!-- Toast Notification (for copy link confirmation) -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 pointer-events-none"></div>
+
+    <!-- Preview Controller Script -->
+    <script type="module" src="js/preview.js?v=4.0"></script>
+</body>
+</html>
+
