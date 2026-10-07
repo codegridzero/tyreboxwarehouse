@@ -334,15 +334,15 @@ class WarehouseApp {
             // Setup event listeners
             this.bindEvents();
 
+            // Load initial data
+            await this.loadProducts();
+            await this.loadShifts();
+            await this.loadTrucks();
+            await this.loadDrivers();
+            await this.loadClaims();
+
             // Setup initial route / tab
             this.handleRouting();
-
-            // Load initial data
-            this.loadProducts();
-            this.loadShifts();
-            this.loadTrucks();
-            this.loadDrivers();
-            this.loadClaims();
 
             // Hide loading screen, show app root
             const loadingEl = document.getElementById('app-loading');
@@ -810,10 +810,18 @@ class WarehouseApp {
             this.claimProductSearch.addEventListener('input', (e) => {
                 this.handleClaimProductSearch(e.target.value);
             });
+            this.claimProductSearch.addEventListener('focus', (e) => {
+                this.handleClaimProductSearch(e.target.value);
+            });
+            this.claimProductSearch.addEventListener('click', (e) => {
+                this.handleClaimProductSearch(e.target.value);
+            });
             this.claimProductSearch.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     this.addSelectedProductToClaim();
+                } else if (e.key === 'Escape') {
+                    if (this.claimProductDropdown) this.claimProductDropdown.classList.add('hidden');
                 }
             });
         }
@@ -3745,6 +3753,14 @@ class WarehouseApp {
         this.selectedClaimProduct = null;
         this.currentClaimItems = [];
 
+        // Always ensure products are up to date from DB
+        try {
+            this.products = dbManager.query('SELECT * FROM products ORDER BY id DESC');
+        } catch (e) {
+            console.warn('Error loading products for claim modal:', e);
+            if (!this.products) this.products = [];
+        }
+
         if (this.claimProductSearch) this.claimProductSearch.value = '';
         if (this.claimProductDropdown) {
             this.claimProductDropdown.classList.add('hidden');
@@ -3817,8 +3833,11 @@ class WarehouseApp {
                     this.claimModalCard.classList.remove('scale-95');
                     this.claimModalCard.classList.add('scale-100');
                 }
-                if (this.claimProductSearch) this.claimProductSearch.focus();
-            }, 10);
+                if (this.claimProductSearch) {
+                    this.claimProductSearch.focus();
+                    this.handleClaimProductSearch(this.claimProductSearch.value);
+                }
+            }, 50);
         }
     }
 
@@ -3849,25 +3868,44 @@ class WarehouseApp {
 
     handleClaimProductSearch(query) {
         if (!this.claimProductDropdown) return;
-        const q = (query || '').trim().toLowerCase();
 
-        if (!q) {
-            this.claimProductDropdown.classList.add('hidden');
-            this.claimProductDropdown.innerHTML = '';
-            this.selectedClaimProduct = null;
-            if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
-            return;
+        // Ensure products list is populated
+        if (!this.products || this.products.length === 0) {
+            try {
+                this.products = dbManager.query('SELECT * FROM products ORDER BY id DESC');
+            } catch (e) {
+                this.products = [];
+            }
         }
 
-        const matches = this.products.filter(p => this.matchesProductSearch(p, q)).slice(0, 10);
+        const q = (query || '').trim().toLowerCase();
+        let matches = [];
+
+        if (!q) {
+            // Show top 10 catalog items so user can choose directly
+            matches = (this.products || []).slice(0, 10);
+            if (matches.length === 0) {
+                this.claimProductDropdown.classList.add('hidden');
+                this.claimProductDropdown.innerHTML = '';
+                return;
+            }
+        } else {
+            matches = (this.products || []).filter(p => this.matchesProductSearch(p, q)).slice(0, 15);
+        }
 
         if (matches.length === 0) {
-            this.claimProductDropdown.innerHTML = `<div class="p-3 text-xs text-gray-500 italic text-center">No matching products found</div>`;
+            this.claimProductDropdown.innerHTML = `<div class="p-3 text-xs text-gray-500 italic text-center">No matching products found for "${this.escapeHtml(q)}"</div>`;
             this.claimProductDropdown.classList.remove('hidden');
             this.selectedClaimProduct = null;
             if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
             return;
         }
+
+        this.renderClaimProductDropdown(matches);
+    }
+
+    renderClaimProductDropdown(matches) {
+        if (!this.claimProductDropdown) return;
 
         this.claimProductDropdown.innerHTML = matches.map(p => {
             const fullDisp = this.getProductDisplayName(p);
@@ -3882,12 +3920,12 @@ class WarehouseApp {
                 : `<div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 shrink-0 text-xs">🛡️</div>`;
 
             return `
-                <button type="button" data-product-id="${p.id}" class="w-full text-left px-3 py-2 hover:bg-sky-50 transition flex items-center justify-between group cursor-pointer">
+                <button type="button" data-product-id="${p.id}" class="claim-product-item-btn w-full text-left px-3 py-2 hover:bg-sky-50 transition flex items-center justify-between group cursor-pointer border-b border-gray-100 last:border-b-0">
                     <div class="flex items-center space-x-2.5 min-w-0">
                         ${thumbImg}
                         <div class="min-w-0">
                             <div class="font-bold text-gray-900 text-xs group-hover:text-sky-700 truncate">${this.escapeHtml(fullDisp)}</div>
-                            <div class="text-[10px] text-gray-500">${this.escapeHtml(p.product_type)} | ${this.escapeHtml(p.strength || 'Nill')}</div>
+                            <div class="text-[10px] text-gray-500">${this.escapeHtml(p.product_type || 'Part')} | ${this.escapeHtml(p.strength || 'Nill')}</div>
                         </div>
                     </div>
                     <div class="flex items-center space-x-1 shrink-0 ml-2">
@@ -3900,47 +3938,64 @@ class WarehouseApp {
 
         this.claimProductDropdown.classList.remove('hidden');
 
-        // Automatically set first match
-        this.selectedClaimProduct = matches[0];
-        if (this.claimSelectedProductBox && this.claimSelectedProductLabel) {
-            this.claimSelectedProductLabel.textContent = `Selected: ${this.getProductDisplayName(matches[0])}`;
-            this.claimSelectedProductBox.classList.remove('hidden');
-        }
-
-        // Attach click listener on dropdown items
-        this.claimProductDropdown.querySelectorAll('button[data-product-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = parseInt(btn.getAttribute('data-product-id'), 10);
-                const prod = this.products.find(p => p.id === id);
-                if (prod) {
-                    this.selectedClaimProduct = prod;
-                    if (this.claimProductSearch) this.claimProductSearch.value = this.getProductDisplayName(prod);
-                    if (this.claimSelectedProductBox && this.claimSelectedProductLabel) {
-                        this.claimSelectedProductLabel.textContent = `Selected: ${this.getProductDisplayName(prod)}`;
-                        this.claimSelectedProductBox.classList.remove('hidden');
-                    }
-                    this.claimProductDropdown.classList.add('hidden');
-                    if (this.claimQuickQty) {
-                        this.claimQuickQty.focus();
-                        this.claimQuickQty.select();
-                    }
-                }
-            });
-        });
-    }
-
-    addSelectedProductToClaim() {
-        if (!this.selectedClaimProduct) {
-            const query = (this.claimProductSearch ? this.claimProductSearch.value : '').trim();
-            if (query) {
-                const match = this.products.find(p => this.matchesProductSearch(p, query));
-                if (match) {
-                    this.selectedClaimProduct = match;
-                }
+        // Automatically set first match as ready candidate
+        if (matches.length > 0 && !this.selectedClaimProduct) {
+            this.selectedClaimProduct = matches[0];
+            if (this.claimSelectedProductBox && this.claimSelectedProductLabel) {
+                this.claimSelectedProductLabel.textContent = `Selected: ${this.getProductDisplayName(matches[0])}`;
+                this.claimSelectedProductBox.classList.remove('hidden');
             }
         }
 
-        if (!this.selectedClaimProduct) {
+        // Attach click and mousedown listeners for instant, robust selection
+        this.claimProductDropdown.querySelectorAll('.claim-product-item-btn').forEach(btn => {
+            const handleSelect = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = parseInt(btn.getAttribute('data-product-id'), 10);
+                const prod = (this.products || []).find(p => p.id === id);
+                if (prod) {
+                    this.selectClaimProduct(prod);
+                }
+            };
+            btn.addEventListener('mousedown', handleSelect);
+            btn.addEventListener('click', handleSelect);
+        });
+    }
+
+    selectClaimProduct(prod) {
+        if (!prod) return;
+        this.selectedClaimProduct = prod;
+        if (this.claimProductSearch) {
+            this.claimProductSearch.value = this.getProductDisplayName(prod);
+        }
+        if (this.claimSelectedProductBox && this.claimSelectedProductLabel) {
+            this.claimSelectedProductLabel.textContent = `Selected: ${this.getProductDisplayName(prod)}`;
+            this.claimSelectedProductBox.classList.remove('hidden');
+        }
+        if (this.claimProductDropdown) {
+            this.claimProductDropdown.classList.add('hidden');
+        }
+        if (this.claimQuickQty) {
+            this.claimQuickQty.focus();
+            this.claimQuickQty.select();
+        }
+    }
+
+    addSelectedProductToClaim() {
+        let prod = this.selectedClaimProduct;
+        
+        if (!prod) {
+            const query = (this.claimProductSearch ? this.claimProductSearch.value : '').trim();
+            if (query) {
+                if (!this.products || this.products.length === 0) {
+                    try { this.products = dbManager.query('SELECT * FROM products ORDER BY id DESC'); } catch (e) {}
+                }
+                prod = (this.products || []).find(p => this.matchesProductSearch(p, query));
+            }
+        }
+
+        if (!prod) {
             this.showToast('Please search and select a product first', 'warning');
             if (this.claimProductSearch) this.claimProductSearch.focus();
             return;
@@ -3952,7 +4007,6 @@ class WarehouseApp {
             return;
         }
 
-        const prod = this.selectedClaimProduct;
         const displayName = this.getProductDisplayName(prod);
 
         const existing = this.currentClaimItems.find(item => item.product_id === prod.id);
@@ -3974,7 +4028,10 @@ class WarehouseApp {
         if (this.claimProductSearch) this.claimProductSearch.value = '';
         if (this.claimSelectedProductBox) this.claimSelectedProductBox.classList.add('hidden');
         if (this.claimQuickQty) this.claimQuickQty.value = '1';
-        if (this.claimProductDropdown) this.claimProductDropdown.classList.add('hidden');
+        if (this.claimProductDropdown) {
+            this.claimProductDropdown.classList.add('hidden');
+            this.claimProductDropdown.innerHTML = '';
+        }
 
         this.renderClaimItemsTable();
         if (this.claimProductSearch) this.claimProductSearch.focus();

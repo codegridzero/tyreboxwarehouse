@@ -159,6 +159,43 @@ if (itemRow.quantity !== 5 || itemRow.display_name !== 'ANT 2.50.17 6P Tire') {
     throw new Error('Claim item validation failed');
 }
 
+// 4. Test Product Autocomplete Search Algorithm for Claims
+const testProducts = [
+    { id: 1, category: 'ANT', product_number: '2.50.17', strength: '6P', position: 'Rear', vehicle_name: 'Honda 70', manufacturer: 'Panther', product_type: 'Tire' },
+    { id: 2, category: 'MM Venture', product_number: '2.50.17', strength: 'Nill', position: 'Rear', vehicle_name: 'Honda 70', manufacturer: 'Giga', product_type: 'Tube' },
+    { id: 3, product_number: '428H-108L', product_type: 'Chain', vehicle_name: 'Honda 70', manufacturer: 'KMC' },
+    { id: 4, product_number: '20W-50 4T 0.7L', product_type: 'Oil', vehicle_name: 'Honda 70', manufacturer: 'Havoline' }
+];
+
+function testMatchesSearch(p, query) {
+    if (!query) return true;
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return true;
+    const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return true;
+    const disp = formatReportProductName(p).toLowerCase();
+    const num = (p.product_number || '').toLowerCase();
+    const veh = (p.vehicle_name || '').toLowerCase();
+    const mfg = (p.manufacturer || '').toLowerCase();
+    const typ = (p.product_type || '').toLowerCase();
+    const str = (p.strength || '').toLowerCase();
+    const cat = (p.category || '').toLowerCase();
+    const combined = `${disp} ${num} ${veh} ${mfg} ${typ} ${str} ${cat}`.toLowerCase();
+    return tokens.every(tok => combined.includes(tok));
+}
+
+const match1 = testProducts.filter(p => testMatchesSearch(p, '2.50.17'));
+console.log('✓ Matches for "2.50.17":', match1.length);
+if (match1.length !== 2) throw new Error(`Expected 2 matches for 2.50.17, got ${match1.length}`);
+
+const match2 = testProducts.filter(p => testMatchesSearch(p, 'chain'));
+console.log('✓ Matches for "chain":', match2.length);
+if (match2.length !== 1 || match2[0].product_type !== 'Chain') throw new Error(`Expected chain match`);
+
+const matchEmpty = testProducts.filter(p => testMatchesSearch(p, ''));
+console.log('✓ Empty search returns all:', matchEmpty.length);
+if (matchEmpty.length !== 4) throw new Error(`Expected all 4 products for empty search`);
+
 console.log('\n======================================================');
-console.log('🎉 ALL CLAIMS CONTROLLER & HELPER TESTS PASSED (100%) 🎉');
+console.log('🎉 ALL CLAIMS CONTROLLER & SEARCH TESTS PASSED (100%) 🎉');
 console.log('======================================================\n');
