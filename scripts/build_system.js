@@ -102,6 +102,7 @@ async function runBuild() {
         'manifest.json',
         'sw.js',
         'server.js',
+        'api.php',
         'package.json',
         'start.sh',
         'restart.sh',

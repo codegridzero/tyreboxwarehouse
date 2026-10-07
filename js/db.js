@@ -371,13 +371,30 @@ class DatabaseManager {
         if (!this.db || typeof window === 'undefined' || typeof fetch === 'undefined') return;
         try {
             const binary = this.db.export();
-            await fetch('/api/save-database', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/octet-stream' },
-                body: binary
-            });
+            let saved = false;
+
+            // 1. Try Node.js endpoint first
+            try {
+                const resp = await fetch('/api/save-database', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/octet-stream' },
+                    body: binary
+                });
+                if (resp && resp.ok) saved = true;
+            } catch (e) {}
+
+            // 2. If on Hostinger PHP Web Hosting, save via api.php
+            if (!saved) {
+                try {
+                    await fetch('api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/octet-stream' },
+                        body: binary
+                    });
+                } catch (e) {}
+            }
         } catch (e) {
-            // Fails silently when offline or static host
+            // Fails silently when offline
         }
     }
 
