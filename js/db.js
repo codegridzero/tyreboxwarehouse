@@ -79,46 +79,62 @@ class DatabaseManager {
 
         let savedBinary = await this.loadFromIndexedDB();
         let loadedFromServer = false;
+        let shouldFetchServerDb = false;
 
-        // Check server version and auto-fetch if newer or local is empty
+        if (!savedBinary || savedBinary.byteLength === 0) {
+            shouldFetchServerDb = true;
+        } else {
+            // Check if saved IndexedDB is an empty schema with 0 products
+            try {
+                const testDb = new this.SQL.Database(new Uint8Array(savedBinary));
+                const countRes = testDb.exec("SELECT COUNT(*) FROM products");
+                const count = countRes[0]?.values[0][0] || 0;
+                if (count === 0) {
+                    shouldFetchServerDb = true;
+                }
+                testDb.close();
+            } catch (e) {
+                shouldFetchServerDb = true;
+            }
+        }
+
+        // Fetch server warehouse.sqlite if needed
         if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
             try {
-                const versionResp = await fetch('/api/db-version', { cache: 'no-store' });
-                if (versionResp.ok) {
-                    const meta = await versionResp.json();
-                    const lastHash = localStorage.getItem(SYNC_HASH_KEY);
-
-                    // If IndexedDB is empty OR server has a newer database that we haven't synced
-                    if (!savedBinary || savedBinary.byteLength === 0 || (meta.hash && meta.hash !== lastHash && !localStorage.getItem('local_has_unsaved_changes'))) {
-                        const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`, { cache: 'no-store' });
-                        if (resp.ok) {
-                            const ab = await resp.arrayBuffer();
-                            if (ab && ab.byteLength > 0) {
-                                savedBinary = ab;
-                                loadedFromServer = true;
-                                if (meta.hash) localStorage.setItem(SYNC_HASH_KEY, meta.hash);
-                                console.log('✓ Auto-loaded updated warehouse.sqlite from server successfully!');
-                            }
+                if (shouldFetchServerDb) {
+                    const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`, { cache: 'no-store' });
+                    if (resp.ok) {
+                        const ab = await resp.arrayBuffer();
+                        if (ab && ab.byteLength > 0) {
+                            savedBinary = ab;
+                            loadedFromServer = true;
+                            console.log('✓ Auto-loaded bundled warehouse.sqlite with full product catalog from server!');
                         }
                     }
-                }
-            } catch (e) {
-                // Fallback: try fetching warehouse.sqlite directly if IndexedDB is empty
-                if (!savedBinary || savedBinary.byteLength === 0) {
+                } else {
+                    // Try checking version API if available on Node/VPS
                     try {
-                        const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`);
-                        if (resp.ok) {
-                            const ab = await resp.arrayBuffer();
-                            if (ab && ab.byteLength > 0) {
-                                savedBinary = ab;
-                                loadedFromServer = true;
-                                console.log('✓ Loaded bundled warehouse.sqlite from static route.');
+                        const versionResp = await fetch('/api/db-version', { cache: 'no-store' });
+                        if (versionResp.ok) {
+                            const meta = await versionResp.json();
+                            const lastHash = localStorage.getItem(SYNC_HASH_KEY);
+                            if (meta.hash && meta.hash !== lastHash && !localStorage.getItem('local_has_unsaved_changes')) {
+                                const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`, { cache: 'no-store' });
+                                if (resp.ok) {
+                                    const ab = await resp.arrayBuffer();
+                                    if (ab && ab.byteLength > 0) {
+                                        savedBinary = ab;
+                                        loadedFromServer = true;
+                                        if (meta.hash) localStorage.setItem(SYNC_HASH_KEY, meta.hash);
+                                        console.log('✓ Auto-loaded updated warehouse.sqlite from server successfully!');
+                                    }
+                                }
                             }
                         }
-                    } catch (err) {
-                        console.log('No bundled warehouse.sqlite found on server, starting fresh.');
-                    }
+                    } catch {}
                 }
+            } catch (err) {
+                console.warn('Could not auto-fetch warehouse.sqlite from server:', err);
             }
         }
 
