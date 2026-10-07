@@ -1041,9 +1041,22 @@ class WarehouseApp {
         if (this.badgeCountSpareParts) this.badgeCountSpareParts.textContent = countSpareParts;
     }
 
-    loadProducts() {
+    async loadProducts() {
         try {
             this.products = dbManager.query('SELECT * FROM products ORDER BY id DESC');
+            if ((!this.products || this.products.length === 0) && typeof fetch !== 'undefined') {
+                try {
+                    const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`);
+                    if (resp.ok) {
+                        const ab = await resp.arrayBuffer();
+                        if (ab && ab.byteLength > 0) {
+                            await dbManager.importDatabase(ab);
+                            this.products = dbManager.query('SELECT * FROM products ORDER BY id DESC');
+                            console.log('✓ Auto-synced products from warehouse.sqlite');
+                        }
+                    }
+                } catch (e) {}
+            }
             this.updateProductCategoryCounts();
             this.renderProductsTable();
         } catch (err) {
