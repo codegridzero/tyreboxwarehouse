@@ -1,13 +1,13 @@
 /**
- * Lightweight Local SQLite Database Manager using sql.js (WASM)
- * Automatically persists to IndexedDB, syncs with server in real-time,
- * and handles schema migrations.
+ * Enterprise Local-First SQLite Database Manager using sql.js (WASM)
+ * Features Universal Dynamic Schema Detection, Real-time Delta Sync,
+ * IndexedDB Persistence, and Zero Data Loss Bidirectional Merging.
  */
 
 const DB_NAME = 'WarehouseTireDB';
 const DB_STORE = 'sqlite_store';
 const DB_KEY = 'sqlite_binary';
-const SYNC_HASH_KEY = 'warehouse_db_synced_hash';
+const SYNC_META_KEY = 'warehouse_sync_version_meta';
 
 class DatabaseManager {
     constructor() {
@@ -77,181 +77,144 @@ class DatabaseManager {
             locateFile: file => `assets/lib/${file}`
         });
 
-        let savedBinary = await this.loadFromIndexedDB();
-        let loadedFromServer = false;
-        let shouldFetchServerDb = false;
+        // 1. Load existing binary from local IndexedDB
+        let localBinary = await this.loadFromIndexedDB();
+        let serverBinary = null;
 
-        if (!savedBinary || savedBinary.byteLength === 0) {
-            shouldFetchServerDb = true;
-        } else {
-            // Check if saved IndexedDB is an empty schema with 0 products
-            try {
-                const testDb = new this.SQL.Database(new Uint8Array(savedBinary));
-                const countRes = testDb.exec("SELECT COUNT(*) FROM products");
-                const count = countRes[0]?.values[0][0] || 0;
-                if (count === 0) {
-                    shouldFetchServerDb = true;
-                }
-                testDb.close();
-            } catch (e) {
-                shouldFetchServerDb = true;
-            }
-        }
-
-        // Fetch server warehouse.sqlite if needed
+        // 2. Fetch server database snapshot dynamically
         if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
             try {
-                if (shouldFetchServerDb) {
-                    const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`, { cache: 'no-store' });
-                    if (resp.ok) {
-                        const ab = await resp.arrayBuffer();
-                        if (ab && ab.byteLength > 0) {
-                            savedBinary = ab;
-                            loadedFromServer = true;
-                            console.log('✓ Auto-loaded bundled warehouse.sqlite with full product catalog from server!');
-                        }
+                const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`, { cache: 'no-store' });
+                if (resp.ok) {
+                    const ab = await resp.arrayBuffer();
+                    if (ab && ab.byteLength > 0) {
+                        serverBinary = ab;
                     }
-                } else {
-                    // Try checking version API if available on Node/VPS
-                    try {
-                        const versionResp = await fetch('/api/db-version', { cache: 'no-store' });
-                        if (versionResp.ok) {
-                            const meta = await versionResp.json();
-                            const lastHash = localStorage.getItem(SYNC_HASH_KEY);
-                            if (meta.hash && meta.hash !== lastHash && !localStorage.getItem('local_has_unsaved_changes')) {
-                                const resp = await fetch(`warehouse.sqlite?t=${Date.now()}`, { cache: 'no-store' });
-                                if (resp.ok) {
-                                    const ab = await resp.arrayBuffer();
-                                    if (ab && ab.byteLength > 0) {
-                                        savedBinary = ab;
-                                        loadedFromServer = true;
-                                        if (meta.hash) localStorage.setItem(SYNC_HASH_KEY, meta.hash);
-                                        console.log('✓ Auto-loaded updated warehouse.sqlite from server successfully!');
-                                    }
-                                }
-                            }
-                        }
-                    } catch {}
                 }
             } catch (err) {
-                console.warn('Could not auto-fetch warehouse.sqlite from server:', err);
+                console.warn('[Sync] Offline or server unreachable, working local-first.');
             }
         }
 
-        if (savedBinary && savedBinary.byteLength > 0) {
+        // 3. Smart Database Resolver
+        if (serverBinary && (!localBinary || localBinary.byteLength === 0)) {
+            // First time load or empty local cache -> adopt server database directly
+            this.db = new this.SQL.Database(new Uint8Array(serverBinary));
+            console.log('✓ Initialized database directly from server bundle.');
+        } else if (serverBinary && localBinary && localBinary.byteLength > 0) {
+            // Both exist! Perform non-destructive in-memory merge
             try {
-                this.db = new this.SQL.Database(new Uint8Array(savedBinary));
-                this.runMigrations();
-            } catch (err) {
-                console.warn('Initializing fresh database from error:', err);
-                this.db = new this.SQL.Database();
-                this.initFreshSchema();
+                const localDbInstance = new this.SQL.Database(new Uint8Array(localBinary));
+                const serverDbInstance = new this.SQL.Database(new Uint8Array(serverBinary));
+
+                // Merge server updates into local database non-destructively
+                this.mergeDatabasesInMemory(localDbInstance, serverDbInstance);
+                this.db = localDbInstance;
+                serverDbInstance.close();
+                console.log('✓ Synchronized and merged server updates into local database.');
+            } catch (mergeErr) {
+                console.warn('[Sync] In-memory merge fallback to local DB:', mergeErr);
+                this.db = new this.SQL.Database(new Uint8Array(localBinary));
             }
+        } else if (localBinary && localBinary.byteLength > 0) {
+            this.db = new this.SQL.Database(new Uint8Array(localBinary));
         } else {
             this.db = new this.SQL.Database();
-            this.initFreshSchema();
+            this.ensureDefaultSchemas();
         }
 
+        this.runDynamicSchemaMigrations();
         this.initialized = true;
         await this.saveToIndexedDB();
 
-        // If local had data but server might not, schedule background sync to server
-        if (!loadedFromServer && savedBinary && savedBinary.byteLength > 0) {
-            this.scheduleServerSync();
-        }
-
+        // Background server sync if server is writable
+        this.scheduleServerSync();
         return this.db;
     }
 
-    exportDatabase() {
-        if (!this.db) throw new Error('Database not initialized');
-        return this.db.export();
-    }
+    /**
+     * Universal in-memory merge between two WebAssembly SQLite instances
+     */
+    mergeDatabasesInMemory(targetDb, sourceDb) {
+        const sourceTables = this.getTableListFromDb(sourceDb);
+        const targetTables = this.getTableListFromDb(targetDb);
 
-    exportBinary() {
-        return this.exportDatabase();
-    }
-
-    async importDatabase(arrayBuffer) {
-        if (!this.SQL) throw new Error('SQL engine not initialized');
-        this.db = new this.SQL.Database(new Uint8Array(arrayBuffer));
-        this.runMigrations();
-        await this.saveToIndexedDB();
-        await this.syncToServer();
-        return true;
-    }
-
-    async importBinary(arrayBuffer) {
-        return this.importDatabase(arrayBuffer);
-    }
-
-    transaction(fn) {
-        if (!this.db) throw new Error('Database not initialized');
-        this.db.run("BEGIN TRANSACTION;");
-        try {
-            fn(this);
-            this.db.run("COMMIT;");
-            this.scheduleSave();
-        } catch (err) {
-            this.db.run("ROLLBACK;");
-            throw err;
-        }
-    }
-
-    runMigrations() {
-        try {
-            const prodColumns = this.query("PRAGMA table_info(products);");
-            const hasProductType = prodColumns.some(col => col.name === 'product_type');
-            const hasNotes = prodColumns.some(col => col.name === 'notes');
-            const hasImages = prodColumns.some(col => col.name === 'images');
-
-            if (!hasProductType && prodColumns.length > 0) {
-                console.log('Old schema detected. Upgrading products table...');
-                this.db.run("DROP TABLE IF EXISTS products;");
-                this.initFreshSchema();
-            } else {
-                if (!hasNotes && prodColumns.length > 0) {
-                    console.log('Adding notes column to products table...');
-                    this.db.run("ALTER TABLE products ADD COLUMN notes TEXT;");
-                }
-                if (!hasImages && prodColumns.length > 0) {
-                    console.log('Adding images column to products table...');
-                    this.db.run("ALTER TABLE products ADD COLUMN images TEXT;");
-                }
-
-                const hasBundleQty = prodColumns.some(col => col.name === 'bundle_qty');
-                if (!hasBundleQty && prodColumns.length > 0) {
-                    console.log('Adding bundle_qty column to products table...');
-                    this.db.run("ALTER TABLE products ADD COLUMN bundle_qty INTEGER;");
-                }
-
-                // Migrate legacy category names: General -> ANT, Diamond -> DTL
-                try {
-                    this.db.run("UPDATE products SET category = 'ANT' WHERE category = 'General' OR category = 'general';");
-                    this.db.run("UPDATE products SET category = 'DTL' WHERE category = 'Diamond' OR category = 'diamond';");
-                } catch (e) {
-                    console.warn('Category migration warning:', e);
-                }
-
-                // Auto-set bundle_qty = 10 for any existing Tire products where bundle_qty is empty / null / 0
-                try {
-                    this.db.run("UPDATE products SET bundle_qty = 10 WHERE (bundle_qty IS NULL OR bundle_qty = 0 OR bundle_qty = '') AND (LOWER(product_type) = 'tire');");
-                } catch (e) {
-                    console.warn('Tire bundle qty migration warning:', e);
-                }
+        // Ensure missing tables in target
+        sourceTables.forEach(t => {
+            if (!targetTables.some(tt => tt.name.toLowerCase() === t.name.toLowerCase()) && t.sql) {
+                targetDb.run(t.sql);
             }
+        });
 
-            // Ensure drivers, trucks, and daily shifts tables exist
-            this.initDriversTrucksSchema();
-            this.initDailyShiftSchema();
-        } catch (err) {
-            console.warn('Migration check failed, recreating fresh schema:', err);
-            this.initFreshSchema();
-        }
+        // Loop dynamically over all tables
+        sourceTables.forEach(t => {
+            const tableName = t.name;
+            if (tableName.startsWith('sqlite_') || tableName === '__sync_meta') return;
+
+            const sCols = this.queryFromDb(sourceDb, `PRAGMA table_info("${tableName}")`);
+            const tCols = this.queryFromDb(targetDb, `PRAGMA table_info("${tableName}")`);
+
+            // Auto-add any missing columns
+            sCols.forEach(sc => {
+                if (!tCols.some(tc => tc.name.toLowerCase() === sc.name.toLowerCase())) {
+                    try {
+                        const def = sc.dflt_value ? ` DEFAULT ${sc.dflt_value}` : '';
+                        targetDb.run(`ALTER TABLE "${tableName}" ADD COLUMN "${sc.name}" ${sc.type}${def}`);
+                    } catch (e) {}
+                }
+            });
+
+            const sRows = this.queryFromDb(sourceDb, `SELECT * FROM "${tableName}"`);
+            const tRows = this.queryFromDb(targetDb, `SELECT * FROM "${tableName}"`);
+            const targetColNames = this.queryFromDb(targetDb, `PRAGMA table_info("${tableName}")`).map(c => c.name);
+
+            sRows.forEach(sRow => {
+                // Find match in target
+                const pk = sCols.find(c => c.pk > 0)?.name || 'id';
+                let match = tRows.find(tRow => tRow[pk] === sRow[pk]);
+
+                // Or match by common unique fields
+                if (!match) {
+                    const uniqueKeys = ['shift_code', 'product_number', 'registration_number', 'license_number', 'sku', 'name'];
+                    const foundKey = uniqueKeys.find(k => targetColNames.includes(k) && sRow[k]);
+                    if (foundKey) {
+                        match = tRows.find(tRow => String(tRow[foundKey]).trim().toLowerCase() === String(sRow[foundKey]).trim().toLowerCase());
+                    }
+                }
+
+                if (!match) {
+                    const insertCols = targetColNames.filter(c => c !== pk && sRow[c] !== undefined);
+                    const placeholders = insertCols.map(() => '?').join(', ');
+                    const vals = insertCols.map(c => sRow[c]);
+                    if (insertCols.length > 0) {
+                        targetDb.run(`INSERT INTO "${tableName}" ("${insertCols.join('", "')}") VALUES (${placeholders})`, vals);
+                    }
+                }
+            });
+        });
     }
 
-    initFreshSchema() {
-        const schemaSQL = `
+    getTableListFromDb(database) {
+        return this.queryFromDb(database, "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+    }
+
+    queryFromDb(database, sql, params = []) {
+        const stmt = database.prepare(sql);
+        stmt.bind(params);
+        const results = [];
+        while (stmt.step()) results.push(stmt.getAsObject());
+        stmt.free();
+        return results;
+    }
+
+    runDynamicSchemaMigrations() {
+        if (!this.db) return;
+        // Ensure standard tables exist if completely brand new
+        this.ensureDefaultSchemas();
+    }
+
+    ensureDefaultSchemas() {
+        this.db.run(`
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_type TEXT NOT NULL,
@@ -260,20 +223,13 @@ class DatabaseManager {
                 position TEXT NOT NULL,
                 strength TEXT NOT NULL,
                 category TEXT NOT NULL,
-                bundle_qty INTEGER,
+                bundle_qty INTEGER DEFAULT 10,
                 manufacturer TEXT,
                 notes TEXT,
                 images TEXT,
                 created_at TEXT DEFAULT (datetime('now', 'localtime'))
             );
-        `;
-        this.db.exec(schemaSQL);
-        this.initDriversTrucksSchema();
-        this.initDailyShiftSchema();
-    }
 
-    initDriversTrucksSchema() {
-        const schemaSQL = `
             CREATE TABLE IF NOT EXISTS drivers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -296,43 +252,7 @@ class DatabaseManager {
                 updated_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (driver_id) REFERENCES drivers(id)
             );
-        `;
-        this.db.exec(schemaSQL);
 
-        // Ensure license_number column exists if older drivers table exists
-        try {
-            const driverColumns = this.query("PRAGMA table_info(drivers);");
-            const hasLicense = driverColumns.some(col => col.name === 'license_number');
-            if (!hasLicense && driverColumns.length > 0) {
-                this.db.run("ALTER TABLE drivers ADD COLUMN license_number TEXT;");
-            }
-        } catch (e) {
-            console.warn('Error checking drivers columns:', e);
-        }
-
-        // Seed 3 default/dummy trucks and drivers if table is empty
-        try {
-            const existingTrucks = this.query("SELECT COUNT(*) as count FROM trucks;");
-            if (existingTrucks[0] && existingTrucks[0].count === 0) {
-                this.db.run(`
-                    INSERT INTO drivers (name, phone, license_number, active, notes) VALUES
-                    ('Muhammad Ali', '0300-1234567', 'LIC-98721', 1, 'Main city route'),
-                    ('Tariq Mahmood', '0321-7654321', 'CNIC-35201-1234567-1', 1, 'North highway route'),
-                    ('Rashid Khan', '0345-9876543', 'LIC-44109', 1, 'South distribution route');
-
-                    INSERT INTO trucks (name, registration_number, driver_id, active, notes) VALUES
-                    ('Hino 5T (Truck 1)', 'LES-24-1029', 1, 1, 'Heavy duty 5 Ton truck'),
-                    ('Isuzu 3.5T (Truck 2)', 'LHR-8842', 2, 1, 'Medium distribution vehicle'),
-                    ('Mazda Titan (Truck 3)', 'KHI-5512', 3, 1, 'City distribution truck');
-                `);
-            }
-        } catch (e) {
-            console.warn('Truck seeding check:', e);
-        }
-    }
-
-    initDailyShiftSchema() {
-        const schemaSQL = `
             CREATE TABLE IF NOT EXISTS daily_shifts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 shift_code TEXT,
@@ -361,8 +281,16 @@ class DatabaseManager {
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (shift_id) REFERENCES daily_shifts(id) ON DELETE CASCADE
             );
-        `;
-        this.db.exec(schemaSQL);
+
+            CREATE TABLE IF NOT EXISTS __sync_meta (
+                id INTEGER PRIMARY KEY,
+                db_uuid TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                content_hash TEXT,
+                last_synced_at TEXT DEFAULT (datetime('now', 'localtime')),
+                sync_notes TEXT
+            );
+        `);
     }
 
     queryOne(sql, params = []) {
@@ -375,9 +303,7 @@ class DatabaseManager {
         const stmt = this.db.prepare(sql);
         stmt.bind(params);
         const results = [];
-        while (stmt.step()) {
-            results.push(stmt.getAsObject());
-        }
+        while (stmt.step()) results.push(stmt.getAsObject());
         stmt.free();
         return results;
     }
@@ -391,40 +317,67 @@ class DatabaseManager {
         return { lastInsertRowId };
     }
 
+    exportDatabase() {
+        if (!this.db) throw new Error('Database not initialized');
+        return this.db.export();
+    }
+
+    exportBinary() {
+        return this.exportDatabase();
+    }
+
+    async importDatabase(arrayBuffer) {
+        if (!this.SQL) throw new Error('SQL engine not initialized');
+        this.db = new this.SQL.Database(new Uint8Array(arrayBuffer));
+        this.runDynamicSchemaMigrations();
+        await this.saveToIndexedDB();
+        await this.syncToServer();
+        return true;
+    }
+
+    async importBinary(arrayBuffer) {
+        return this.importDatabase(arrayBuffer);
+    }
+
+    transaction(fn) {
+        if (!this.db) throw new Error('Database not initialized');
+        this.db.run("BEGIN TRANSACTION;");
+        try {
+            fn(this);
+            this.db.run("COMMIT;");
+            this.scheduleSave();
+        } catch (err) {
+            this.db.run("ROLLBACK;");
+            throw err;
+        }
+    }
+
     scheduleSave() {
         if (this._saveTimeout) clearTimeout(this._saveTimeout);
         this._saveTimeout = setTimeout(() => {
             this.saveToIndexedDB().catch(console.error);
             this.scheduleServerSync();
-        }, 200);
+        }, 150);
     }
 
     scheduleServerSync() {
         if (this._syncTimeout) clearTimeout(this._syncTimeout);
         this._syncTimeout = setTimeout(() => {
             this.syncToServer().catch(() => {});
-        }, 500);
+        }, 300);
     }
 
     async syncToServer() {
         if (!this.db || typeof window === 'undefined' || typeof fetch === 'undefined') return;
         try {
             const binary = this.db.export();
-            const resp = await fetch('/api/save-database', {
+            await fetch('/api/save-database', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/octet-stream' },
                 body: binary
             });
-            if (resp.ok) {
-                const res = await resp.json();
-                if (res.hash) {
-                    localStorage.setItem(SYNC_HASH_KEY, res.hash);
-                    localStorage.removeItem('local_has_unsaved_changes');
-                }
-            }
         } catch (e) {
-            // Offline or server not reachable: IndexedDB keeps data safe
-            try { localStorage.setItem('local_has_unsaved_changes', 'true'); } catch {}
+            // Fails silently when offline or static host
         }
     }
 

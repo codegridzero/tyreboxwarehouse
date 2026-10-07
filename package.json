@@ -11,7 +11,7 @@
     "seed": "node scripts/generate_seed_db.js",
     "test": "node tests/test_warehouse_flow.js",
     "test:merge": "node tests/test_auto_merge.js",
-    "test:all": "node tests/test_warehouse_flow.js && node tests/test_spare_parts_products.js && node tests/test_daily_shifts.js && node tests/test_trucks_drivers_subtabs.js && node tests/test_auto_merge.js"
+    "test:all": "node tests/test_warehouse_flow.js && node tests/test_spare_parts_products.js && node tests/test_daily_shifts.js && node tests/test_trucks_drivers_subtabs.js && node tests/test_auto_merge.js && node tests/test_universal_sync.js"
   },
   "keywords": [
     "warehouse",
